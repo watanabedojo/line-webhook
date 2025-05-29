@@ -7,7 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const auth = new google.auth.GoogleAuth({
-  keyFile: '/secrets/calendar-key.json',
+  keyFile: '/secrets/calendar-key/calendar-key',
   scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
 });
 const calendar = google.calendar({ version: 'v3', auth });
