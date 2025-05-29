@@ -54,8 +54,7 @@ app.get('/calendar/test', async (req, res) => {
 
     const events = result.data.items;
     if (events.length === 0) {
-      await sendLineMessage('📢 本日のお知らせ：
-今日の予定はありません。');
+      await sendLineMessage('📢 本日のお知らせ：\n今日の予定はありません。');
     } else {
       let message = '📢 今日の予定をお知らせします';
       for (const event of events) {
