@@ -2,8 +2,8 @@ const express = require('express');
 const { google } = require('googleapis');
 const app = express();
 
-const LINE_CHANNEL_ACCESS_TOKEN = 'YOUR_LINE_ACCESS_TOKEN';
-const TEST_USER_ID = 'YOUR_USER_ID';
+const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
+const TEST_USER_ID = 'U5cb571e2ad5fcbcdfda8f2105edd2f0a';
 
 app.get('/calendar/test', async (req, res) => {
   try {
