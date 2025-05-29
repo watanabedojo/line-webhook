@@ -10,7 +10,7 @@ const USER_ID = 'U5cb571e2ad5fcbcdfda8f2105edd2f0a';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 
 const auth = new google.auth.GoogleAuth({
-  keyFile: '/secrets/calendar-key',
+  keyFile: '/secrets/line-bot-key.json',
   scopes: ['https://www.googleapis.com/auth/calendar.readonly']
 });
 
