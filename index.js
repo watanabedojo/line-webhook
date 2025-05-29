@@ -64,14 +64,14 @@ async function getTodaysEvents() {
     return ['📢 今日の予定はありません。'];
   }
 
-  let message = `おはようございます。\n本日の予定をお知らせします。\n`;
+  let message = `おはようございます。🥋\n本日の予定をお知らせします。\n`;
 
   for (const event of events) {
     const startTime = formatDateTime(event.start.dateTime || event.start.date);
     const endTime = formatDateTime(event.end.dateTime || event.end.date);
     message += `\n📢 ${event.summary}\n日時：${startTime}〜${endTime}`;
     if (event.location) message += `\n場所：${event.location}`;
-    if (event.description) message += `\n内容：${event.description}`;
+    if (event.description) message += `\nその他：${event.description}`;
     message += `\n\nご不明な点はご連絡ください。\nご確認お願いいたします。\n`;
   }
 
