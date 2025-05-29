@@ -19,7 +19,7 @@ const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 // 🔐 認証クライアント作成
 // サービスアカウントキー
 const auth = new google.auth.GoogleAuth({
-  keyFile: '/secrets/calendar-key'',
+  keyFile: '/secrets/calendar-key',
   scopes: SCOPES
 });
 
