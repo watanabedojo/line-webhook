@@ -9,7 +9,7 @@ app.use(bodyParser.json());
 const LINE_CHANNEL_ACCESS_TOKEN = '+UE3+1Bgqkp8WQoxrH7pdvyhr3QIT6bY8tWs5lFIFDeJFBMNvMCTZgUFrW/qaihdzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rz2y7UG4nD4Ict0w2q+UJpuVXsZo/hP5bmhToKpvgtowwdB04t89/1O/w1cDnyilFU=';
 
 // ✅ テスト送信対象（後ほどWebhookログで置き換え）
-const TEST_USER_ID = 'U5cb571e2ad5cfbcfdda8f21e5ded2f0a';
+const TEST_USER_ID = 'U5cb571e2ad5fcbcdfda8f2105edd2f0a';
 
 app.get('/test', async (req, res) => {
   try {
