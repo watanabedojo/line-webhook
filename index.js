@@ -5,10 +5,10 @@ const app = express();
 
 app.use(bodyParser.json());
 
-// チャネルアクセストークン（長期トークンを使用）
-const LINE_CHANNEL_ACCESS_TOKEN = 'GHpLdoUF9qwf0mkDGCbqigN7Fkuhai9jGUMdd1I5iJGy8ICkv1Jjmvm8UITjIg7GzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rwO4J1WMIY0t7l+MCBa9yEHhKZ7kvwp4wAy5lua/cI4WgdB04t89/1O/w1cDnyilFU=';
+// ✅ 指定されたチャネルアクセストークン
+const LINE_CHANNEL_ACCESS_TOKEN = '+UE3+1Bgqkp8WQoxrH7pdvyhr3QIT6bY8tWs5lFIFDeJFBMNvMCTZgUFrW/qaihdzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rz2y7UG4nD4Ict0w2q+UJpuVXsZo/hP5bmhToKpvgtowwdB04t89/1O/w1cDnyilFU=';
 
-// テスト送信用ユーザーID（友達追加済みのユーザー）
+// テスト用LINEユーザーID（友だち追加済み）
 const TEST_USER_ID = 'U5cb571e2ad5cfbcfdda8f21e5ded2f0a';
 
 app.get('/test', async (req, res) => {
@@ -18,7 +18,7 @@ app.get('/test', async (req, res) => {
       messages: [
         {
           type: 'text',
-          text: '📢 テストメッセージ送信成功！',
+          text: '📢 テストメッセージ送信成功！'
         }
       ]
     }, {
