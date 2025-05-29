@@ -25,14 +25,11 @@ const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 function getJSTRange() {
   const now = new Date();
   const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
-
   const jstYear = jstNow.getFullYear();
   const jstMonth = jstNow.getMonth();
   const jstDate = jstNow.getDate();
-
   const start = new Date(Date.UTC(jstYear, jstMonth, jstDate, -9, 0, 0));
   const end = new Date(Date.UTC(jstYear, jstMonth, jstDate + 1, -9, 0, 0));
-
   return {
     start: start.toISOString(),
     end: end.toISOString()
@@ -95,7 +92,7 @@ async function sendLineMessage(text, to = USER_ID) {
   });
 }
 
-// テストエンドポイント
+// カレンダー通知用のテストエンドポイント
 app.get('/calendar/test', async (req, res) => {
   try {
     const events = await getTodaysEvents();
@@ -109,14 +106,12 @@ app.get('/calendar/test', async (req, res) => {
   }
 });
 
-// 📩 Webhookエンドポイント（友だち追加検知）
+// Webhookエンドポイント（友だち追加イベント）
 app.post('/webhook', async (req, res) => {
   const event = req.body.events?.[0];
   if (event?.type === 'follow') {
     const userId = event.source.userId;
     console.log('🆕 新しい友だち追加:', userId);
-
-    // 🎉 挨拶メッセージ送信
     await sendLineMessage(
       '友だち追加ありがとうございます！今後、空手道場の予定を自動でお知らせします📢',
       userId
