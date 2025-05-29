@@ -21,7 +21,7 @@ app.get('/calendar/test', async (req, res) => {
     todayEnd.setHours(23, 59, 59);
 
     const eventsRes = await calendar.events.list({
-      calendarId: 'primary',
+      calendarId: 'jks.watanabe.dojo@gmail.com',
       timeMin: todayStart.toISOString(),
       timeMax: todayEnd.toISOString(),
       singleEvents: true,
