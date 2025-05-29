@@ -2,39 +2,58 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const { google } = require('googleapis');
-const key = require('/secrets/line-bot-key.json'); // マウント済みキーファイル
+const key = require('/secrets/line-bot-key.json'); // Cloud Runにマウントされたキー
 
 const app = express();
 app.use(bodyParser.json());
 
-// 固定情報（LINE・カレンダー）
+// LINE設定
 const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
 const USER_ID = 'U5cb571e2ad5fcbcdfda8f2105edd2f0a';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 
-// JWTでGoogle API認証
+// 認証：JWTを使用
 const jwtClient = new google.auth.JWT(
   key.client_email,
   null,
   key.private_key,
   ['https://www.googleapis.com/auth/calendar.readonly']
 );
-
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
+// JSTの日付範囲（UTCで5/30 00:00〜23:59 JST を表現）
 function getJSTRange() {
   const now = new Date();
-  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  const start = new Date(jst); start.setHours(0, 0, 0, 0);
-  const end = new Date(jst); end.setHours(23, 59, 59, 999);
-  return { start: start.toISOString(), end: end.toISOString() };
+  const jstOffset = 9 * 60 * 60 * 1000;
+  const jstNow = new Date(now.getTime() + jstOffset);
+
+  const start = new Date(Date.UTC(
+    jstNow.getUTCFullYear(),
+    jstNow.getUTCMonth(),
+    jstNow.getUTCDate(),
+    0, 0, 0
+  ));
+
+  const end = new Date(Date.UTC(
+    jstNow.getUTCFullYear(),
+    jstNow.getUTCMonth(),
+    jstNow.getUTCDate(),
+    23, 59, 59
+  ));
+
+  return {
+    start: start.toISOString(),
+    end: end.toISOString()
+  };
 }
 
+// フォーマット用
 function formatDateTime(datetimeStr) {
   const dt = new Date(datetimeStr);
   return `${dt.getFullYear()}年${dt.getMonth() + 1}月${dt.getDate()}日 ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
 }
 
+// 予定取得と整形
 async function getTodaysEvents() {
   await jwtClient.authorize();
   const { start, end } = getJSTRange();
@@ -58,6 +77,7 @@ async function getTodaysEvents() {
   });
 }
 
+// LINE通知
 async function sendLineMessage(text) {
   await axios.post('https://api.line.me/v2/bot/message/push', {
     to: USER_ID,
@@ -70,6 +90,7 @@ async function sendLineMessage(text) {
   });
 }
 
+// テストエンドポイント
 app.get('/calendar/test', async (req, res) => {
   try {
     const events = await getTodaysEvents();
@@ -87,6 +108,7 @@ app.get('/calendar/test', async (req, res) => {
   }
 });
 
+// ポート
 app.listen(process.env.PORT || 8080, () => {
   console.log('Server running on port 8080');
 });
