@@ -6,7 +6,7 @@ const app = express();
 app.use(bodyParser.json());
 
 // チャネルアクセストークン（固定で貼り付け済）
-const LINE_CHANNEL_ACCESS_TOKEN = 'GHpLdoUF9qwf0mkDGCbqigN7Fkuhai9jGUMdd1I5iJGy8ICkv1Jjmvm8UITjIg7GzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rwO4J1WMIY0t7l+MCBa9yEHhKZ7kvwp4wAy5lua/cI4WgdB04t89/1O/w1cDnyilFU=';
+const LINE_CHANNEL_ACCESS_TOKEN = 'VQiW6DqQ4+jM/qrPQrMNJw5q12FfewjL2gf6ybdHpAcVLhcOUsbny6ihd13/DbLazlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rxUvXkrrC+SAY+SQWpN89+s321O9CKh4YTlRFt/H58C8gdB04t89/1O/w1cDnyilFU=';
 
 // テスト送信用ユーザーID
 const TEST_USER_ID = 'U5cb571e2ad5cfbcfdda8f21e5ded2f0a';
