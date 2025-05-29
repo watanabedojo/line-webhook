@@ -60,7 +60,6 @@ async function getTodaysEvents() {
 
   const allEvents = res.data.items || [];
 
-  // 🔍「全体通知」を含む説明のみ
   const events = allEvents.filter(event =>
     event.description && event.description.includes('全体通知')
   );
@@ -84,9 +83,9 @@ async function getTodaysEvents() {
 }
 
 // LINE通知
-async function sendLineMessage(text) {
+async function sendLineMessage(text, to = USER_ID) {
   await axios.post('https://api.line.me/v2/bot/message/push', {
-    to: USER_ID,
+    to,
     messages: [{ type: 'text', text }]
   }, {
     headers: {
@@ -110,7 +109,23 @@ app.get('/calendar/test', async (req, res) => {
   }
 });
 
-// ポート
+// 📩 Webhookエンドポイント（友だち追加検知）
+app.post('/webhook', async (req, res) => {
+  const event = req.body.events?.[0];
+  if (event?.type === 'follow') {
+    const userId = event.source.userId;
+    console.log('🆕 新しい友だち追加:', userId);
+
+    // 🎉 挨拶メッセージ送信
+    await sendLineMessage(
+      '友だち追加ありがとうございます！今後、空手道場の予定を自動でお知らせします📢',
+      userId
+    );
+  }
+  res.sendStatus(200);
+});
+
+// ポート起動
 app.listen(process.env.PORT || 8080, () => {
   console.log('Server running on port 8080');
 });
