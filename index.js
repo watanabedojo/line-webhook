@@ -21,7 +21,7 @@ const jwtClient = new google.auth.JWT(
 );
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
-// JST日付範囲（UTCとして指定）
+// JST範囲をUTCで取得
 function getJSTRange() {
   const now = new Date();
   const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
@@ -39,13 +39,13 @@ function getJSTRange() {
   };
 }
 
-// 日時フォーマット
+// 日時整形
 function formatDateTime(datetimeStr) {
   const dt = new Date(datetimeStr);
   return `${dt.getFullYear()}年${dt.getMonth() + 1}月${dt.getDate()}日 ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
 }
 
-// 予定取得と整形（文頭メッセージ付き）
+// 予定取得（説明に「全体通知」を含むものだけ）
 async function getTodaysEvents() {
   await jwtClient.authorize();
   const { start, end } = getJSTRange();
@@ -58,27 +58,32 @@ async function getTodaysEvents() {
     orderBy: 'startTime',
   });
 
-  const events = res.data.items || [];
+  const allEvents = res.data.items || [];
+
+  // 🔍「全体通知」を含む説明のみ
+  const events = allEvents.filter(event =>
+    event.description && event.description.includes('全体通知')
+  );
 
   if (events.length === 0) {
-    return ['📢 今日の予定はありません。'];
+    return ['📢 今日の「全体通知」対象の予定はありません。'];
   }
 
-  let message = `おはようございます。🥋\n本日の予定をお知らせします。\n`;
+  let message = `おはようございます。\n本日の予定をお知らせします。\n`;
 
   for (const event of events) {
     const startTime = formatDateTime(event.start.dateTime || event.start.date);
     const endTime = formatDateTime(event.end.dateTime || event.end.date);
     message += `\n📢 ${event.summary}\n日時：${startTime}〜${endTime}`;
     if (event.location) message += `\n場所：${event.location}`;
-    if (event.description) message += `\nその他：${event.description}`;
+    message += `\n内容：${event.description}`;
     message += `\n\nご不明な点はご連絡ください。\nご確認お願いいたします。\n`;
   }
 
   return [message.trim()];
 }
 
-// LINE送信
+// LINE通知
 async function sendLineMessage(text) {
   await axios.post('https://api.line.me/v2/bot/message/push', {
     to: USER_ID,
@@ -105,7 +110,7 @@ app.get('/calendar/test', async (req, res) => {
   }
 });
 
-// ポート起動
+// ポート
 app.listen(process.env.PORT || 8080, () => {
   console.log('Server running on port 8080');
 });
