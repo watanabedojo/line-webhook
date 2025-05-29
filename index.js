@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const { google } = require('googleapis');
+
 const app = express();
 app.use(bodyParser.json());
 
@@ -9,14 +10,17 @@ const LINE_CHANNEL_ACCESS_TOKEN = '+UE3+1Bgqkp8WQoxrH7pdvyhr3QIT6bY8tWs5lFIFDeJF
 const USER_ID = 'U5cb571e2ad5fcbcdfda8f2105edd2f0a';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 
+// 認証設定（マウントされたサービスアカウントキーを使用）
 const auth = new google.auth.GoogleAuth({
   keyFile: '/secrets/line-bot-key.json',
   scopes: ['https://www.googleapis.com/auth/calendar.readonly']
 });
 
-const calendar = google.calendar({ version: 'v3', auth });
-
 async function getTodaysEvents() {
+  // 🔧 明示的に認証クライアントを取得
+  const authClient = await auth.getClient();
+  const calendar = google.calendar({ version: 'v3', auth: authClient });
+
   const now = new Date();
   const startOfDay = new Date(now.setHours(0, 0, 0, 0)).toISOString();
   const endOfDay = new Date(now.setHours(23, 59, 59, 999)).toISOString();
@@ -44,6 +48,7 @@ async function sendLineMessage(text) {
   });
 }
 
+// 🔍 動作確認用GETエンドポイント
 app.get('/calendar/test', async (req, res) => {
   try {
     const events = await getTodaysEvents();
