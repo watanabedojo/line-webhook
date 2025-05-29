@@ -2,25 +2,28 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const { google } = require('googleapis');
+const fs = require('fs');
 
 const app = express();
 app.use(bodyParser.json());
 
-const LINE_CHANNEL_ACCESS_TOKEN = '+UE3+1Bgqkp8WQoxrH7pdvyhr3QIT6bY8tWs5lFIFDeJFBMNvMCTZgUFrW/qaihdzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rz2y7UG4nD4Ict0w2q+UJpuVXsZo/hP5bmhToKpvgtowwdB04t89/1O/w1cDnyilFU=';
-const USER_ID = 'U5cb571e2ad5fcbcdfda8f2105edd2f0a';
+const LINE_CHANNEL_ACCESS_TOKEN = '（あなたのキー）';
+const USER_ID = '（あなたのLINE ID）';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 
-// 認証設定（マウントされたサービスアカウントキーを使用）
-const auth = new google.auth.GoogleAuth({
-  keyFile: '/secrets/line-bot-key.json',
-  scopes: ['https://www.googleapis.com/auth/calendar.readonly']
-});
+// 📌 JWT を使って認証する
+const key = require('/secrets/line-bot-key.json');
+const jwtClient = new google.auth.JWT(
+  key.client_email,
+  null,
+  key.private_key,
+  ['https://www.googleapis.com/auth/calendar.readonly']
+);
+
+const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
 async function getTodaysEvents() {
-  // 🔧 明示的に認証クライアントを取得
-  const authClient = await auth.getClient();
-  const calendar = google.calendar({ version: 'v3', auth: authClient });
-
+  await jwtClient.authorize(); // ← 明示的に認証
   const now = new Date();
   const startOfDay = new Date(now.setHours(0, 0, 0, 0)).toISOString();
   const endOfDay = new Date(now.setHours(23, 59, 59, 999)).toISOString();
@@ -48,7 +51,6 @@ async function sendLineMessage(text) {
   });
 }
 
-// 🔍 動作確認用GETエンドポイント
 app.get('/calendar/test', async (req, res) => {
   try {
     const events = await getTodaysEvents();
