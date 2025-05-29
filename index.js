@@ -21,10 +21,9 @@ const jwtClient = new google.auth.JWT(
 );
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
-// JST日付範囲をUTCとして出力
+// JST日付範囲（UTCとして指定）
 function getJSTRange() {
   const now = new Date();
-
   const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
 
   const jstYear = jstNow.getFullYear();
@@ -40,13 +39,13 @@ function getJSTRange() {
   };
 }
 
-// 日時フォーマット整形
+// 日時フォーマット
 function formatDateTime(datetimeStr) {
   const dt = new Date(datetimeStr);
   return `${dt.getFullYear()}年${dt.getMonth() + 1}月${dt.getDate()}日 ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
 }
 
-// 予定取得
+// 予定取得と整形（文頭メッセージ付き）
 async function getTodaysEvents() {
   await jwtClient.authorize();
   const { start, end } = getJSTRange();
@@ -60,17 +59,26 @@ async function getTodaysEvents() {
   });
 
   const events = res.data.items || [];
-  return events.map(event => {
+
+  if (events.length === 0) {
+    return ['📢 今日の予定はありません。'];
+  }
+
+  let message = `おはようございます。\n本日の予定をお知らせします。\n`;
+
+  for (const event of events) {
     const startTime = formatDateTime(event.start.dateTime || event.start.date);
     const endTime = formatDateTime(event.end.dateTime || event.end.date);
-    return `📢 ${event.summary}\n日時：${startTime}〜${endTime}` +
-      (event.location ? `\n場所：${event.location}` : '') +
-      (event.description ? `\n内容：${event.description}` : '') +
-      `\n\nご不明な点はご連絡ください。\nご確認お願いいたします。`;
-  });
+    message += `\n📢 ${event.summary}\n日時：${startTime}〜${endTime}`;
+    if (event.location) message += `\n場所：${event.location}`;
+    if (event.description) message += `\n内容：${event.description}`;
+    message += `\n\nご不明な点はご連絡ください。\nご確認お願いいたします。\n`;
+  }
+
+  return [message.trim()];
 }
 
-// LINE通知送信
+// LINE送信
 async function sendLineMessage(text) {
   await axios.post('https://api.line.me/v2/bot/message/push', {
     to: USER_ID,
@@ -83,16 +91,12 @@ async function sendLineMessage(text) {
   });
 }
 
-// テスト用エンドポイント
+// テストエンドポイント
 app.get('/calendar/test', async (req, res) => {
   try {
     const events = await getTodaysEvents();
-    if (events.length === 0) {
-      await sendLineMessage('📢 今日の予定はありません。');
-    } else {
-      for (const message of events) {
-        await sendLineMessage(message);
-      }
+    for (const message of events) {
+      await sendLineMessage(message);
     }
     res.status(200).send('✅ 通知完了');
   } catch (error) {
@@ -101,6 +105,7 @@ app.get('/calendar/test', async (req, res) => {
   }
 });
 
+// ポート起動
 app.listen(process.env.PORT || 8080, () => {
   console.log('Server running on port 8080');
 });
