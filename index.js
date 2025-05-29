@@ -8,8 +8,8 @@ const app = express();
 app.use(bodyParser.json());
 
 // 固定情報（LINE・カレンダー）
-const LINE_CHANNEL_ACCESS_TOKEN = 'あなたのトークン';
-const USER_ID = 'あなたのLINE ID';
+const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
+const USER_ID = 'U5cb571e2ad5fcbcdfda8f2105edd2f0a';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 
 // JWTでGoogle API認証
