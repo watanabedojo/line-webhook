@@ -12,9 +12,16 @@ app.use(bodyParser.json());
 const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 
-// Firestore 初期化
-const firestore = new Firestore();
-const usersCollection = firestore.collection('users');
+// Firestore 初期化（重複排除済み）
+let firestore, usersCollection;
+try {
+  firestore = new Firestore();
+  usersCollection = firestore.collection('users');
+  console.log('✅ Firestore 初期化成功');
+} catch (e) {
+  console.error('❌ Firestore 初期化エラー:', e.message);
+  process.exit(1);
+}
 
 // JWT認証（Googleカレンダー）
 const jwtClient = new google.auth.JWT(
@@ -98,7 +105,6 @@ app.post('/webhook', async (req, res) => {
     const userId = event.source.userId;
     console.log('🆕 新しい友だち追加:', userId);
 
-    // Firestoreに保存（重複チェックあり）
     const docRef = usersCollection.doc(userId);
     const doc = await docRef.get();
     if (!doc.exists) {
