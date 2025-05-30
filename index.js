@@ -2,17 +2,21 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const { google } = require('googleapis');
+const { Firestore } = require('@google-cloud/firestore');
 const key = require('/secrets/line-bot-key.json');
 
 const app = express();
 app.use(bodyParser.json());
 
 // LINE設定
-const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
-const USER_ID = 'U5cb571e2ad5fcbcdfda8f2105edd2f0a';
+const LINE_CHANNEL_ACCESS_TOKEN = '（あなたのアクセストークン）';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 
-// JWT認証
+// Firestore 初期化
+const firestore = new Firestore();
+const usersCollection = firestore.collection('users');
+
+// JWT認証（Googleカレンダー）
 const jwtClient = new google.auth.JWT(
   key.client_email,
   null,
@@ -21,28 +25,23 @@ const jwtClient = new google.auth.JWT(
 );
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
-// JST範囲をUTCで取得
+// JSTの1日分の範囲
 function getJSTRange() {
   const now = new Date();
   const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
-  const jstYear = jstNow.getFullYear();
-  const jstMonth = jstNow.getMonth();
-  const jstDate = jstNow.getDate();
-  const start = new Date(Date.UTC(jstYear, jstMonth, jstDate, -9, 0, 0));
-  const end = new Date(Date.UTC(jstYear, jstMonth, jstDate + 1, -9, 0, 0));
-  return {
-    start: start.toISOString(),
-    end: end.toISOString()
-  };
+  const y = jstNow.getFullYear(), m = jstNow.getMonth(), d = jstNow.getDate();
+  const start = new Date(Date.UTC(y, m, d, -9, 0, 0));
+  const end = new Date(Date.UTC(y, m, d + 1, -9, 0, 0));
+  return { start: start.toISOString(), end: end.toISOString() };
 }
 
-// 日時整形
+// 日付整形
 function formatDateTime(datetimeStr) {
   const dt = new Date(datetimeStr);
   return `${dt.getFullYear()}年${dt.getMonth() + 1}月${dt.getDate()}日 ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
 }
 
-// 予定取得（説明に「全体通知」を含むものだけ）
+// 予定取得（説明に「全体通知」を含む）
 async function getTodaysEvents() {
   await jwtClient.authorize();
   const { start, end } = getJSTRange();
@@ -79,8 +78,8 @@ async function getTodaysEvents() {
   return [message.trim()];
 }
 
-// LINE通知
-async function sendLineMessage(text, to = USER_ID) {
+// LINE通知送信
+async function sendLineMessage(text, to) {
   await axios.post('https://api.line.me/v2/bot/message/push', {
     to,
     messages: [{ type: 'text', text }]
@@ -92,26 +91,21 @@ async function sendLineMessage(text, to = USER_ID) {
   });
 }
 
-// カレンダー通知用のテストエンドポイント
-app.get('/calendar/test', async (req, res) => {
-  try {
-    const events = await getTodaysEvents();
-    for (const message of events) {
-      await sendLineMessage(message);
-    }
-    res.status(200).send('✅ 通知完了');
-  } catch (error) {
-    console.error('❌ Googleカレンダー取得エラー:', error.message);
-    res.status(500).send('❌ 通信処理失敗');
-  }
-});
-
-// Webhookエンドポイント（友だち追加イベント）
+// Webhook：友だち追加時にFirestore保存
 app.post('/webhook', async (req, res) => {
   const event = req.body.events?.[0];
   if (event?.type === 'follow') {
     const userId = event.source.userId;
     console.log('🆕 新しい友だち追加:', userId);
+
+    // Firestoreに保存（重複チェックあり）
+    const docRef = usersCollection.doc(userId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+      await docRef.set({ userId });
+      console.log('✅ Firestoreに保存:', userId);
+    }
+
     await sendLineMessage(
       '友だち追加ありがとうございます！今後、空手道場の予定を自動でお知らせします📢',
       userId
@@ -120,7 +114,36 @@ app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
 });
 
-// ポート起動
+// 全ユーザーにカレンダー通知
+app.get('/calendar/broadcast', async (req, res) => {
+  try {
+    const messages = await getTodaysEvents();
+    const snapshot = await usersCollection.get();
+
+    if (snapshot.empty) {
+      console.log('⚠️ Firestoreにユーザーが登録されていません');
+      return res.status(404).send('ユーザーがいません');
+    }
+
+    for (const doc of snapshot.docs) {
+      const userId = doc.id;
+      for (const message of messages) {
+        try {
+          await sendLineMessage(message, userId);
+        } catch (err) {
+          console.error(`❌ ${userId}への送信失敗`, err.message);
+        }
+      }
+    }
+
+    res.send('✅ 全ユーザーに送信完了');
+  } catch (error) {
+    console.error('❌ 通知失敗:', error.message);
+    res.status(500).send('サーバーエラー');
+  }
+});
+
+// サーバー起動
 app.listen(process.env.PORT || 8080, () => {
-  console.log('Server running on port 8080');
+  console.log('🚀 Server running on port 8080');
 });
