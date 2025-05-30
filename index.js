@@ -98,7 +98,7 @@ async function sendLineMessage(text, to) {
   });
 }
 
-// Webhook：友だち追加時にFirestore保存（修正版）
+// Webhook：友だち追加時にFirestore保存
 app.post('/webhook', async (req, res) => {
   const event = req.body.events?.[0];
   if (event?.type === 'follow') {
@@ -106,21 +106,24 @@ app.post('/webhook', async (req, res) => {
     console.log('🆕 新しい友だち追加:', userId);
 
     const docRef = usersCollection.doc(userId);
-    const doc = await docRef.get();
-    if (!doc.exists) {
-      await docRef.set({}); // ← userIdをドキュメントIDとして保存、フィールド不要
-      console.log('✅ Firestoreに保存:', userId);
+    try {
+      const doc = await docRef.get();
+      if (!doc.exists) {
+        await docRef.set({});
+        console.log('✅ Firestoreに保存:', userId);
+      }
+      await sendLineMessage(
+        '友だち追加ありがとうございます！今後、空手道場の予定を自動でお知らせします📢',
+        userId
+      );
+    } catch (err) {
+      console.error('❌ Firestore保存エラー:', err.message);
     }
-
-    await sendLineMessage(
-      '友だち追加ありがとうございます！今後、空手道場の予定を自動でお知らせします📢',
-      userId
-    );
   }
   res.sendStatus(200);
 });
 
-// 全ユーザーにカレンダー通知
+// 全ユーザーにカレンダー通知（Firestore NOT_FOUND対策付き）
 app.get('/calendar/broadcast', async (req, res) => {
   try {
     const messages = await getTodaysEvents();
@@ -133,18 +136,25 @@ app.get('/calendar/broadcast', async (req, res) => {
 
     for (const doc of snapshot.docs) {
       const userId = doc.id;
+
+      if (!userId) {
+        console.warn('⚠️ 無効なuserIdをスキップ');
+        continue;
+      }
+
       for (const message of messages) {
         try {
+          console.log(`📤 通知送信対象: ${userId}`);
           await sendLineMessage(message, userId);
         } catch (err) {
-          console.error(`❌ ${userId}への送信失敗`, err.message);
+          console.error(`❌ ${userId}への送信失敗:`, err.message);
         }
       }
     }
 
     res.send('✅ 全ユーザーに送信完了');
   } catch (error) {
-    console.error('❌ 通知失敗:', error.message);
+    console.error('❌ broadcast全体の通知処理に失敗:', error.message);
     res.status(500).send('サーバーエラー');
   }
 });
