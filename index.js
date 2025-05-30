@@ -9,7 +9,7 @@ const app = express();
 app.use(bodyParser.json());
 
 // LINE設定
-const LINE_CHANNEL_ACCESS_TOKEN = '（あなたのアクセストークン）';
+const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 
 // Firestore 初期化
