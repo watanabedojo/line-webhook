@@ -12,7 +12,7 @@ app.use(bodyParser.json());
 const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 
-// Firestore 初期化（重複排除済み）
+// Firestore 初期化
 let firestore, usersCollection;
 try {
   firestore = new Firestore();
@@ -98,7 +98,7 @@ async function sendLineMessage(text, to) {
   });
 }
 
-// Webhook：友だち追加時にFirestore保存
+// Webhook：友だち追加時にFirestore保存（修正版）
 app.post('/webhook', async (req, res) => {
   const event = req.body.events?.[0];
   if (event?.type === 'follow') {
@@ -108,7 +108,7 @@ app.post('/webhook', async (req, res) => {
     const docRef = usersCollection.doc(userId);
     const doc = await docRef.get();
     if (!doc.exists) {
-      await docRef.set({ userId });
+      await docRef.set({}); // ← userIdをドキュメントIDとして保存、フィールド不要
       console.log('✅ Firestoreに保存:', userId);
     }
 
