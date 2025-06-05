@@ -12,6 +12,7 @@ app.use(bodyParser.json());
 // LINE設定
 const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
+const GAS_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbxxxxxxxxxxxxxxxxxxxxxxxxxxxx/exec'; // ←あなたのURLに置き換えてください
 
 // Firestore 初期化
 let firestore, usersCollection;
@@ -54,6 +55,23 @@ function formatDateTime(datetimeStr) {
     String(jst.getHours()).padStart(2, '0') + ':' +
     String(jst.getMinutes()).padStart(2, '0')
   );
+}
+
+// スプレッドシートへ送信する関数
+async function postToSheet(data) {
+  try {
+    await axios.post(GAS_WEBHOOK_URL, data);
+    console.log('📝 スプレッドシート送信成功');
+  } catch (err) {
+    console.error('❌ スプレッドシート送信失敗:', err.message);
+  }
+}
+
+// テキストから項目を抽出する補助関数
+function getField(text, label) {
+  const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
+  const match = text.match(regex);
+  return match ? match[1].trim() : '';
 }
 
 // 今日の予定取得（「全体通知」を含む）
@@ -203,6 +221,23 @@ app.post('/webhook', async (req, res) => {
     } catch (err) {
       console.error('❌ ビジター申込処理失敗:', err.message);
     }
+  } else if (event?.type === 'message' && event.message.text.includes('お名前') && event.message.text.includes('所属道場')) {
+    const userId = event.source.userId;
+    const text = event.message.text;
+
+    const parsed = {
+      userId,
+      name: getField(text, '【お名前】'),
+      grade: getField(text, '【学年 or ご年齢】'),
+      dojo: getField(text, '【所属道場】'),
+      permission: getField(text, '【参加にあたって所属道場長の許可】'),
+      date: getField(text, '【希望日時】'),
+      note: getField(text, '【ご連絡事項（あれば）】'),
+      source: 'LINE',
+    };
+
+    await postToSheet(parsed);
+    await sendLineMessage('✅ ご回答ありがとうございます！内容を確認しました。', userId);
   }
 
   res.sendStatus(200);
