@@ -83,14 +83,19 @@ async function getTodaysEvents() {
   return [message.trim()];
 }
 
-// 1ヶ月分のビジター予定取得
+// 1ヶ月分のビジター予定取得（当日0:00 JSTから）
 async function getVisitorEventsOneMonth() {
   await jwtClient.authorize();
 
   const now = new Date();
   const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+  jstNow.setHours(0, 0, 0, 0);
+
   const endJST = new Date(jstNow);
   endJST.setMonth(endJST.getMonth() + 1);
+  endJST.setHours(23, 59, 59, 999);
+
+  console.log('📅 検索対象期間:', jstNow.toISOString(), '〜', endJST.toISOString());
 
   const res = await calendar.events.list({
     calendarId: CALENDAR_ID,
