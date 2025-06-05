@@ -47,7 +47,14 @@ function getJSTRange() {
 function formatDateTime(datetimeStr) {
   const utc = new Date(datetimeStr);
   const jst = new Date(utc.getTime() + 9 * 60 * 60 * 1000); // +9時間補正
-  return `${jst.getFullYear()}年${jst.getMonth() + 1}月${jst.getDate()}日 ${String(jst.getHours()).padStart(2, '0')}:${String(jst.getMinutes()).padStart(2, '0')}`;
+  return (
+    jst.getFullYear() + '年' +
+    (jst.getMonth() + 1) + '月' +
+    jst.getDate() + '日 ' +
+    String(jst.getHours()).padStart(2, '0') + ':' +
+    String(jst.getMinutes()).padStart(2, '0')
+  );
+}年${jst.getMonth() + 1}月${jst.getDate()}日 ${String(jst.getHours()).padStart(2, '0')}:${String(jst.getMinutes()).padStart(2, '0')}`;
 }年${dt.getMonth() + 1}月${dt.getDate()}日 ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
 }
 
