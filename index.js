@@ -1,3 +1,4 @@
+// 必要なモジュール読み込み
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
@@ -48,7 +49,7 @@ function formatDateTime(datetimeStr) {
   return `${dt.getFullYear()}年${dt.getMonth() + 1}月${dt.getDate()}日 ${String(dt.getHours()).padStart(2, '0')}:${String(dt.getMinutes()).padStart(2, '0')}`;
 }
 
-// 予定取得（説明に「全体通知」を含む）
+// 今日の予定取得（「全体通知」を含む）
 async function getTodaysEvents() {
   await jwtClient.authorize();
   const { start, end } = getJSTRange();
@@ -62,7 +63,6 @@ async function getTodaysEvents() {
   });
 
   const allEvents = res.data.items || [];
-
   const events = allEvents.filter(event =>
     event.description && event.description.includes('全体通知')
   );
@@ -72,7 +72,6 @@ async function getTodaysEvents() {
   }
 
   let message = `おはようございます。\n本日の予定をお知らせします。\n`;
-
   for (const event of events) {
     const startTime = formatDateTime(event.start.dateTime || event.start.date);
     const endTime = formatDateTime(event.end.dateTime || event.end.date);
@@ -81,8 +80,71 @@ async function getTodaysEvents() {
     message += `\n内容：${event.description}`;
     message += `\n\nご不明な点はご連絡ください。\nご確認お願いいたします。\n`;
   }
-
   return [message.trim()];
+}
+
+// 1ヶ月分のビジター予定取得
+async function getVisitorEventsOneMonth() {
+  await jwtClient.authorize();
+
+  const now = new Date();
+  const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
+  const endJST = new Date(jstNow);
+  endJST.setMonth(endJST.getMonth() + 1);
+
+  const res = await calendar.events.list({
+    calendarId: CALENDAR_ID,
+    timeMin: jstNow.toISOString(),
+    timeMax: endJST.toISOString(),
+    singleEvents: true,
+    orderBy: 'startTime',
+  });
+
+  const allEvents = res.data.items || [];
+  const events = allEvents.filter(event =>
+    event.description && event.description.includes('ビジター')
+  );
+
+  if (events.length === 0) {
+    return '該当する予定が見つかりませんでした。';
+  }
+
+  const eventsText = events.map(event => {
+    const dateStr = formatDateTime(event.start.dateTime || event.start.date);
+    return `・${dateStr} ${event.summary}`;
+  }).join('\n');
+
+  const message = `お問い合わせいただきありがとうございます。
+渡邊道場からの自動返信となります。
+
+出稽古・練習会参加にあたって、下記のテンプレートに沿ってご返信ください。
+
+ご返信確認後、当日の注意事項などを改めてご連絡させていただきます。
+
+--------------------
+
+【お名前】
+
+【学年 or ご年齢】
+
+【所属道場】
+
+【参加にあたって所属道場長の許可】
+得ている・確認中
+
+【希望日時】
+${eventsText}
+
+【ご連絡事項（あれば）】
+
+【料金】
+参加費：3,000円
+家族割：2名以上で1名につき1,000円割引
+※動画撮影可
+
+--------------------`;
+
+  return message;
 }
 
 // LINE通知送信
@@ -98,9 +160,10 @@ async function sendLineMessage(text, to) {
   });
 }
 
-// Webhook：友だち追加時にFirestore保存
+// Webhook処理
 app.post('/webhook', async (req, res) => {
   const event = req.body.events?.[0];
+
   if (event?.type === 'follow') {
     const userId = event.source.userId;
     console.log('🆕 新しい友だち追加:', userId);
@@ -119,7 +182,17 @@ app.post('/webhook', async (req, res) => {
     } catch (err) {
       console.error('❌ Firestore保存エラー:', err.message);
     }
+  } else if (event?.type === 'message' && event.message.text === 'ビジター申込') {
+    const userId = event.source.userId;
+    try {
+      const message = await getVisitorEventsOneMonth();
+      await sendLineMessage(message, userId);
+      console.log(`📨 ビジター申込テンプレート送信済み: ${userId}`);
+    } catch (err) {
+      console.error('❌ ビジター申込処理失敗:', err.message);
+    }
   }
+
   res.sendStatus(200);
 });
 
@@ -136,11 +209,7 @@ app.get('/calendar/broadcast', async (req, res) => {
 
     for (const doc of snapshot.docs) {
       const userId = doc.id;
-
-      if (!userId) {
-        console.warn('⚠️ 無効なuserIdをスキップ');
-        continue;
-      }
+      if (!userId) continue;
 
       for (const message of messages) {
         try {
