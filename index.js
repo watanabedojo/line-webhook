@@ -17,6 +17,7 @@ const GAS_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbz915raOlkxis1v
 // Firestore 初期化
 const firestore = new Firestore();
 const usersCollection = firestore.collection('users');
+const tokensCollection = firestore.collection('eventTokens');
 
 // JWT認証（Googleカレンダー）
 const jwtClient = new google.auth.JWT(
@@ -167,6 +168,15 @@ app.post('/webhook', async (req, res) => {
   if (!event) return res.sendStatus(200);
 
   const userId = event.source?.userId;
+  const replyToken = event.replyToken;
+
+  // 🔒 重複処理チェック
+  const exists = await tokensCollection.doc(replyToken).get();
+  if (exists.exists) {
+    console.log('⚠️ 重複イベント：スキップします');
+    return res.sendStatus(200);
+  }
+  await tokensCollection.doc(replyToken).set({ handled: true });
 
   if (event.type === 'follow') {
     await usersCollection.doc(userId).set({}, { merge: true });
@@ -192,10 +202,8 @@ app.post('/webhook', async (req, res) => {
         source: 'LINE'
       };
 
-      // 🔕 通知とスプレッドシート送信を一時停止中
-      console.log('🔕 ビジター回答受信（通知・送信停止中）:', parsed);
-      // await postToSheet(parsed);
-      // await sendLineMessage('✅ ご回答ありがとうございます！内容を確認しました。', userId);
+      await postToSheet(parsed);
+      await sendLineMessage('✅ ご回答ありがとうございます！内容を確認しました。', userId);
     }
   }
 
