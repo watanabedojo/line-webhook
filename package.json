@@ -11,9 +11,7 @@
     "express": "^4.18.2",
     "googleapis": "^133.0.0",
     "@google-cloud/firestore": "^6.7.0",
-    "dayjs": "^1.11.10",
-    "dayjs-plugin-utc": "^1.0.0",
-    "dayjs-plugin-timezone": "^1.0.0"
+    "dayjs": "^1.11.10"
   },
   "engines": {
     "node": "18.x"
