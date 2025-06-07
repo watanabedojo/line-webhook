@@ -96,8 +96,7 @@ app.post('/webhook', async (req, res) => {
       const eventsText = events.map(e => {
         const start = new Date(e.start.dateTime || e.start.date);
         const weekday = weekdayNames[start.getDay()];
-        const time = `${start.getMonth() + 1}月${start.getDate()}日（${weekday}）${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
-        return time;
+        return `${start.getMonth() + 1}月${start.getDate()}日（${weekday}）${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
       }).join('\n\n');
 
       const message1 = `お問い合わせありがとうございます。
@@ -138,14 +137,28 @@ ${eventsText}
         source: 'LINE'
       };
 
+      const events = await getVisitorEventsOneMonth();
+      let place = '場所未定';
+      const match = parsed.date.match(/(\d{1,2})月(\d{1,2})日/);
+      if (match) {
+        const month = parseInt(match[1]);
+        const day = parseInt(match[2]);
+        const matched = events.find(e => {
+          const start = new Date(e.start.dateTime || e.start.date);
+          return start.getMonth() + 1 === month && start.getDate() === day;
+        });
+        if (matched) place = matched.location || place;
+      }
+
       await postToSheet(parsed);
 
       const response = `${parsed.name}さん
 ご回答ありがとうございます。
 ${parsed.date}
-場所：渡邊道場
+場所：${place}
 参加費：3,000円　家族割あり2名以上で1名につき1,000円割引
 前日に再度ご連絡いたします、何かご不明点があれば公式LINEのお問い合わせからどうぞ。`;
+
       await sendLineMessage(response, userId);
     }
   }
