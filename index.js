@@ -209,7 +209,7 @@ app.post('/webhook', async (req, res) => {
       const notice = text.replace('臨時通知：', '').trim();
       const snapshot = await usersCollection.get();
       if (!snapshot.empty) {
-        const fullMessage = `【臨時のお知らせ】\n\n${notice}`;
+        const fullMessage = `【お知らせ】\n\n${notice}`;
         for (const doc of snapshot.docs) {
           await sendLineMessage(fullMessage, doc.id);
         }
