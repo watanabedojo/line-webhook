@@ -73,13 +73,13 @@ async function getScheduledEvents(dayOffset = 0) {
   });
 
   const allEvents = res.data.items || [];
-  const events = allEvents.filter(e => e.description?.includes('全体通知'));
+  const events = allEvents.filter(e => e.description?.includes('稽古連絡'));
 
   if (events.length === 0) {
-    return [`📢 ${dayOffset === 1 ? '明日' : '今日'}の「全体通知」対象の予定はありません。`];
+    return [`📢 ${dayOffset === 1 ? '明日' : '今日'}の稽古予定はありません。`];
   }
 
-  let message = `お知らせです。\n${dayOffset === 1 ? '明日' : '本日'}の予定をお送りします。\n`;
+  let message = `【${dayOffset === 1 ? '明日の' : '本日の'}稽古予定】\n`;
   for (const event of events) {
     const startTime = formatDateTime(event.start.dateTime || event.start.date);
     const endTime = formatDateTime(event.end.dateTime || event.end.date);
