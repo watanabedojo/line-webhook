@@ -76,16 +76,22 @@ async function getScheduledEvents(dayOffset = 0) {
   const events = allEvents.filter(e => e.description?.includes('稽古連絡'));
 
   if (events.length === 0) {
-    return [`📢 ${dayOffset === 1 ? '明日' : '今日'}の稽古予定はありません。`];
+    return [`📢 ${dayOffset === 1 ? '明日' : '今日'}の「稽古連絡」対象の予定はありません。`];
   }
 
   let message = `【${dayOffset === 1 ? '明日の' : '本日の'}稽古予定】\n`;
   for (const event of events) {
-    const startTime = formatDateTime(event.start.dateTime || event.start.date);
-    const endTime = formatDateTime(event.end.dateTime || event.end.date);
-    message += `\n📢 ${event.summary}\n日時：${startTime}〜${endTime}`;
-    if (event.location) message += `\n場所：${event.location}`;
-    message += `\n内容：${event.description}\n`;
+    const start = new Date(event.start.dateTime || event.start.date);
+    const end = new Date(event.end.dateTime || event.end.date);
+    const weekday = ['日', '月', '火', '水', '木', '金', '土'][start.getDay()];
+
+    const startStr = `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日（${weekday}） ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+    const endStr = `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+
+    message += `\n📢 ${event.summary}`;
+    message += `\n📅日時：${startStr}～${endStr}`;
+    if (event.location) message += `\n📍場所：${event.location}`;
+    message += `\n📝内容：${event.description}\n`;
   }
   return [message.trim()];
 }
