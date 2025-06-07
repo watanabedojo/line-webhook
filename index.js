@@ -152,12 +152,8 @@ ${eventsText}
 
       await postToSheet(parsed);
 
-      const response = `${parsed.name}さん
-ご回答ありがとうございます。
-${parsed.date}
-場所：${place}
-参加費：3,000円　家族割あり2名以上で1名につき1,000円割引
-前日に再度ご連絡いたします、何かご不明点があれば公式LINEのお問い合わせからどうぞ。`;
+const response = `${parsed.name}さん\nご回答ありがとうございます。\n\n${parsed.date}\n場所：${parsed.location}\n\n参加費：3,000円　家族割あり（2名以上で1名につき1,000円割引）\n\n前日に再度ご連絡いたします。\n何かご不明点があれば、公式LINEのお問い合わせからどうぞ。`;
+
 
       await sendLineMessage(response, userId);
     }
