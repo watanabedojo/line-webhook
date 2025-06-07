@@ -1,9 +1,4 @@
 
-/*
-  統合版スクリプト：ビジター申込時に2通返信（稽古日時一覧＋テンプレート）を含む完全版
-  2025年6月対応済み
-*/
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
@@ -31,9 +26,7 @@ const jwtClient = new google.auth.JWT(
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
 function getField(text, label) {
-  const regex = new RegExp(`${label}[\s
-]*([^
-]+)`);
+  const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
   const match = text.match(regex);
   return match ? match[1].trim() : '';
 }
@@ -103,11 +96,9 @@ app.post('/webhook', async (req, res) => {
       const eventsText = events.map(e => {
         const start = new Date(e.start.dateTime || e.start.date);
         const weekday = weekdayNames[start.getDay()];
-        const time = `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`;
-        return `${start.getMonth() + 1}月${start.getDate()}日（${weekday}）${time}`;
-      }).join('
-
-');
+        const time = `${start.getMonth() + 1}月${start.getDate()}日（${weekday}）${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+        return time;
+      }).join('\n\n');
 
       const message1 = `お問い合わせありがとうございます。
 現在予定している稽古日時を現在から1ヶ月分お知らせします。
@@ -160,4 +151,8 @@ ${parsed.date}
   }
 
   res.sendStatus(200);
+});
+
+app.listen(process.env.PORT || 8080, () => {
+  console.log('🚀 Server running on port 8080');
 });
