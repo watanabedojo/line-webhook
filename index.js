@@ -25,7 +25,7 @@ const jwtClient = new google.auth.JWT(
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
 function getField(text, label) {
-  const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
+  const regex = new RegExp(`${label}[\\s\\n]*([^\\n]+)`);
   const match = text.match(regex);
   return match ? match[1].trim() : '';
 }
@@ -73,7 +73,6 @@ async function sendLineMessage(text, to) {
     }
   });
 }
-
 app.post('/webhook', async (req, res) => {
   const event = req.body.events?.[0];
   if (!event) return res.sendStatus(200);
@@ -98,9 +97,27 @@ app.post('/webhook', async (req, res) => {
         return `${start.getMonth() + 1}月${start.getDate()}日（${weekday}）${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
       }).join('\n\n');
 
-      const message1 = `お問い合わせありがとうございます。\n現在予定している稽古日時を現在から1ヶ月分お知らせします。\n\n【日時一覧】\n${eventsText}\n\nこのあと続けて返信用テンプレートを送信します。\n文面を長押しして「コピー」→メッセージ入力画面を長押しして「ペースト」をしていただくと入力がスムーズです。\nご不明点は「お問い合わせ」からいつでもお気軽にどうぞ。`;
+      const message1 = `お問い合わせありがとうございます。
+現在予定している稽古日時を現在から1ヶ月分お知らせします。
 
-      const message2 = `【希望日時】\n〇月〇日\n【お名前】\n〇〇 〇〇\n【学年or年齢】\n○○\n【所属道場】\n○○\n【参加の許可を所属道場長の許可】\n得ている・確認中\n【ご連絡事項（あれば）】`;
+【日時一覧】
+${eventsText}
+
+このあと続けて返信用テンプレートを送信します。
+文面を長押しして「コピー」→メッセージ入力画面を長押しして「ペースト」をしていただくと入力がスムーズです。
+ご不明点は「お問い合わせ」からいつでもお気軽にどうぞ。`;
+
+      const message2 = `【希望日時】
+〇月〇日
+【お名前】
+〇〇 〇〇
+【学年or年齢】
+○○
+【所属道場】
+○○
+【参加の許可を所属道場長の許可】
+得ている・確認中
+【ご連絡事項（あれば）】`;
 
       await sendLineMessage(message1, userId);
       await sendLineMessage(message2, userId);
@@ -140,6 +157,68 @@ app.post('/webhook', async (req, res) => {
   }
 
   res.sendStatus(200);
+});
+
+// 翌日の予定を全員に送信
+app.get('/broadcast/all', async (req, res) => {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+
+  const events = await getVisitorEventsOneMonth();
+  const tomorrowEvents = events.filter(e => {
+    const start = new Date(e.start.dateTime || e.start.date);
+    return start.getDate() === tomorrow.getDate() &&
+           start.getMonth() === tomorrow.getMonth();
+  });
+
+  if (tomorrowEvents.length === 0) return res.send('明日の予定はありません。');
+
+  const messages = tomorrowEvents.map(e => {
+    const start = new Date(e.start.dateTime || e.start.date);
+    const time = `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`;
+    const weekday = ['日', '月', '火', '水', '木', '金', '土'][start.getDay()];
+    return `${start.getMonth() + 1}月${start.getDate()}日（${weekday}）${time} 場所：${e.location || '未定'}`;
+  }).join('\n\n');
+
+  const snapshot = await usersCollection.get();
+  for (const doc of snapshot.docs) {
+    await sendLineMessage(`【明日の稽古予定】\n\n${messages}`, doc.id);
+  }
+
+  res.send('全ユーザーへ送信しました');
+});
+
+// 翌日の予約者のみに送信
+app.get('/broadcast/visitors', async (req, res) => {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+
+  const events = await getVisitorEventsOneMonth();
+  const tomorrowEvents = events.filter(e => {
+    const start = new Date(e.start.dateTime || e.start.date);
+    return start.getDate() === tomorrow.getDate() &&
+           start.getMonth() === tomorrow.getMonth();
+  });
+
+  if (tomorrowEvents.length === 0) return res.send('明日の予定はありません。');
+
+  const messages = tomorrowEvents.map(e => {
+    const start = new Date(e.start.dateTime || e.start.date);
+    const time = `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`;
+    const weekday = ['日', '月', '火', '水', '木', '金', '土'][start.getDay()];
+    return `${start.getMonth() + 1}月${start.getDate()}日（${weekday}）${time} 場所：${e.location || '未定'}`;
+  }).join('\n\n');
+
+  const visitorSnapshot = await usersCollection.where('date', '==', `${tomorrow.getMonth() + 1}月${tomorrow.getDate()}日`).get();
+  for (const doc of visitorSnapshot.docs) {
+    await sendLineMessage(`【明日のご案内です】\n\n${messages}`, doc.id);
+  }
+
+  res.send('予約者のみに送信しました');
 });
 
 app.listen(process.env.PORT || 8080, () => {
