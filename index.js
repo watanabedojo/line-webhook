@@ -25,13 +25,13 @@ const jwtClient = new google.auth.JWT(
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
 function getField(text, label) {
-  const regex = new RegExp(`${label}[\\s\\n]*([^\\n]+)`);
+  const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
   const match = text.match(regex);
   return match ? match[1].trim() : '';
 }
 
-function toHalfWidth(str) {
-  return str.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+function normalizeDate(dateStr) {
+  return dateStr.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
 }
 
 async function postToSheet(data) {
@@ -78,7 +78,6 @@ async function sendLineMessage(text, to) {
   });
 }
 
-// Webhook受信処理
 app.post('/webhook', async (req, res) => {
   const event = req.body.events?.[0];
   if (!event) return res.sendStatus(200);
@@ -92,7 +91,6 @@ app.post('/webhook', async (req, res) => {
   if (event.type === 'message') {
     const text = event.message.text;
 
-    // ビジター申込コマンド
     if (text === 'ビジター申込') {
       const events = await getVisitorEventsOneMonth();
       if (events.length === 0) return await sendLineMessage('該当する予定が見つかりませんでした。', userId);
@@ -105,32 +103,40 @@ app.post('/webhook', async (req, res) => {
       }).join('\n\n');
 
       const message1 = `お問い合わせありがとうございます。
+
 現在予定している稽古日時を現在から1ヶ月分お知らせします。
 
 【日時一覧】
+
 ${eventsText}
 
 このあと続けて返信用テンプレートを送信します。
+
 文面を長押しして「コピー」→メッセージ入力画面を長押しして「ペースト」をしていただくと入力がスムーズです。
+
 ご不明点は「お問い合わせ」からいつでもお気軽にどうぞ。`;
 
       const message2 = `【希望日時】
 〇月〇日
+
 【お名前】
 〇〇 〇〇
+
 【学年or年齢】
 ○○
+
 【所属道場】
 ○○
+
 【参加の許可を所属道場長の許可】
 得ている・確認中
+
 【ご連絡事項（あれば）】`;
 
       await sendLineMessage(message1, userId);
       await sendLineMessage(message2, userId);
     }
 
-    // 返信メッセージ受付
     if (text.includes('お名前') && text.includes('所属道場')) {
       const parsed = {
         userId,
@@ -138,21 +144,14 @@ ${eventsText}
         grade: getField(text, '【学年or年齢】'),
         dojo: getField(text, '【所属道場】'),
         permission: getField(text, '【参加の許可を所属道場長の許可】'),
-        date: getField(text, '【希望日時】'),
+        date: normalizeDate(getField(text, '【希望日時】')),
         note: getField(text, '【ご連絡事項（あれば）】'),
         source: 'LINE'
       };
 
-      // dateKey を抽出して保存
-      const dateText = toHalfWidth(parsed.date);
-      const match = dateText.match(/(\d{1,2})月(\d{1,2})日/);
-      if (match) {
-        parsed.dateKey = `${parseInt(match[1])}月${parseInt(match[2])}日`;
-      }
-
-      // Googleカレンダーから場所取得
       const events = await getVisitorEventsOneMonth();
       let place = '場所未定';
+      const match = parsed.date.match(/(\d{1,2})月(\d{1,2})日/);
       if (match) {
         const month = parseInt(match[1]);
         const day = parseInt(match[2]);
@@ -165,7 +164,17 @@ ${eventsText}
 
       await postToSheet(parsed);
 
-      const response = `${parsed.name}さん\nご回答ありがとうございます。\n\n${parsed.date}\n場所：${place}\n\n参加費：3,000円　家族割あり（2名以上で1名につき1,000円割引）\n\n前日に再度ご連絡いたします。\n何かご不明点があれば、公式LINEのお問い合わせからどうぞ。`;
+      const response = `${parsed.name}さん
+
+ご回答ありがとうございます。
+
+${parsed.date}
+場所：${place}
+
+参加費：3,000円　家族割あり（2名以上で1名につき1,000円割引）
+
+前日に再度ご連絡いたします。
+何かご不明点があれば、公式LINEのお問い合わせからどうぞ。`;
 
       await sendLineMessage(response, userId);
     }
@@ -174,7 +183,7 @@ ${eventsText}
   res.sendStatus(200);
 });
 
-// 翌日予定を全ユーザーに送信
+// All users
 app.get('/broadcast/all', async (req, res) => {
   const now = new Date();
   const tomorrow = new Date(now);
@@ -199,18 +208,20 @@ app.get('/broadcast/all', async (req, res) => {
 
   const snapshot = await usersCollection.get();
   for (const doc of snapshot.docs) {
-    await sendLineMessage(`【明日の稽古予定】\n\n${messages}`, doc.id);
+    await sendLineMessage(`【明日の稽古予定】
+
+${messages}`, doc.id);
   }
 
   res.send('全ユーザーへ送信しました');
 });
 
-// 翌日予約者のみに送信
+// Only to reservation users
 app.get('/broadcast/visitors', async (req, res) => {
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
-  const dateKey = `${tomorrow.getMonth() + 1}月${tomorrow.getDate()}日`;
+  tomorrow.setHours(0, 0, 0, 0);
 
   const events = await getVisitorEventsOneMonth();
   const tomorrowEvents = events.filter(e => {
@@ -228,9 +239,11 @@ app.get('/broadcast/visitors', async (req, res) => {
     return `${start.getMonth() + 1}月${start.getDate()}日（${weekday}）${time} 場所：${e.location || '未定'}`;
   }).join('\n\n');
 
-  const visitorSnapshot = await usersCollection.where('dateKey', '==', dateKey).get();
+  const visitorSnapshot = await usersCollection.where('date', '==', `${tomorrow.getMonth() + 1}月${tomorrow.getDate()}日`).get();
   for (const doc of visitorSnapshot.docs) {
-    await sendLineMessage(`【明日のご案内です】\n\n${messages}`, doc.id);
+    await sendLineMessage(`【明日のご案内です】
+
+${messages}`, doc.id);
   }
 
   res.send('予約者のみに送信しました');
