@@ -13,6 +13,7 @@ app.use(bodyParser.json());
 const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 const GAS_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbz915raOlkxis1vx_7vvJjVdA5KzNquZUAt1QckbJVCCcxM6MEj4RhCX-4WDyT6ZImP/exec';
+const ADMIN_USER_ID = 'U5cb571e2ad5fcbcdfda8f2105edd2f0a';
 
 // Firestore 初期化
 const firestore = new Firestore();
@@ -43,6 +44,23 @@ function formatDateTime(datetimeStr) {
   return `${jst.getFullYear()}年${jst.getMonth() + 1}月${jst.getDate()}日 ${String(jst.getHours()).padStart(2, '0')}:${String(jst.getMinutes()).padStart(2, '0')}`;
 }
 
+async function postToSheet(data) {
+  try {
+    await axios.post(GAS_WEBHOOK_URL, data, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    console.log('📝 スプレッドシート送信成功');
+  } catch (err) {
+    console.error('❌ スプレッドシート送信失敗:', err.message);
+  }
+}
+
+function getField(text, label) {
+  const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
+  const match = text.match(regex);
+  return match ? match[1].trim() : '';
+}
+
 async function getScheduledEvents(dayOffset = 0) {
   await jwtClient.authorize();
   const { start, end } = getJSTRange(dayOffset);
@@ -61,27 +79,25 @@ async function getScheduledEvents(dayOffset = 0) {
     return [`📢 ${dayOffset === 1 ? '明日' : '今日'}の「稽古連絡」対象の予定はありません。`];
   }
 
-  let message = `【${dayOffset === 1 ? '明日の' : '本日の'}稽古予定】`;
-
+  let message = `【${dayOffset === 1 ? '明日の' : '本日の'}稽古予定】\n`;
   for (const event of events) {
     const start = new Date(event.start.dateTime || event.start.date);
     const end = new Date(event.end.dateTime || event.end.date);
     const weekday = ['日', '月', '火', '水', '木', '金', '土'][start.getDay()];
+
     const startStr = `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日（${weekday}） ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
     const endStr = `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
 
-    message += `\n\n📢 ${event.summary}`;
+    message += `\n📢 ${event.summary}`;
     message += `\n\n📅日時：${startStr}～${endStr}`;
     if (event.location) message += `\n\n📍場所：${event.location}`;
-    message += `\n\n📝内容：${event.description}`;
+    message += `\n\n📝内容：${event.description}\n`;
   }
-
   return [message.trim()];
 }
 
 async function getVisitorEventsOneMonth() {
   await jwtClient.authorize();
-
   const now = new Date();
   const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
   jstNow.setHours(0, 0, 0, 0);
@@ -100,9 +116,7 @@ async function getVisitorEventsOneMonth() {
   const allEvents = res.data.items || [];
   const events = allEvents.filter(e => e.description?.includes('ビジター'));
 
-  if (events.length === 0) {
-    return '該当する予定が見つかりませんでした。';
-  }
+  if (events.length === 0) return '該当する予定が見つかりませんでした。';
 
   const eventsText = events.map(event => {
     const dateStr = formatDateTime(event.start.dateTime || event.start.date);
@@ -189,9 +203,20 @@ app.post('/webhook', async (req, res) => {
         note: getField(text, '【ご連絡事項（あれば）】'),
         source: 'LINE'
       };
-
       await postToSheet(parsed);
       await sendLineMessage('✅ ご回答ありがとうございます！内容を確認しました。', userId);
+    } else if (text.startsWith('臨時通知：') && userId === ADMIN_USER_ID) {
+      const notice = text.replace('臨時通知：', '').trim();
+      const snapshot = await usersCollection.get();
+      if (!snapshot.empty) {
+        const fullMessage = `【臨時のお知らせ】\n\n${notice}`;
+        for (const doc of snapshot.docs) {
+          await sendLineMessage(fullMessage, doc.id);
+        }
+        await sendLineMessage('✅ 臨時通知を全ユーザーに送信しました。', userId);
+      } else {
+        await sendLineMessage('⚠️ ユーザーが登録されていません。', userId);
+      }
     }
   }
 
@@ -211,7 +236,6 @@ app.get('/calendar/broadcast', async (req, res) => {
         await sendLineMessage(message, userId);
       }
     }
-
     res.send('✅ 全ユーザーに送信完了');
   } catch (err) {
     console.error('❌ 通知失敗:', err.message);
