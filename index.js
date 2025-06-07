@@ -28,7 +28,6 @@ const jwtClient = new google.auth.JWT(
 );
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
-// JSTの指定日の範囲（当日 or 翌日）
 function getJSTRange(dayOffset = 0) {
   const now = new Date();
   const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
@@ -42,23 +41,6 @@ function formatDateTime(datetimeStr) {
   const utc = new Date(datetimeStr);
   const jst = new Date(utc.getTime() + 9 * 60 * 60 * 1000);
   return `${jst.getFullYear()}年${jst.getMonth() + 1}月${jst.getDate()}日 ${String(jst.getHours()).padStart(2, '0')}:${String(jst.getMinutes()).padStart(2, '0')}`;
-}
-
-async function postToSheet(data) {
-  try {
-    await axios.post(GAS_WEBHOOK_URL, data, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-    console.log('📝 スプレッドシート送信成功');
-  } catch (err) {
-    console.error('❌ スプレッドシート送信失敗:', err.message);
-  }
-}
-
-function getField(text, label) {
-  const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
-  const match = text.match(regex);
-  return match ? match[1].trim() : '';
 }
 
 async function getScheduledEvents(dayOffset = 0) {
@@ -79,20 +61,21 @@ async function getScheduledEvents(dayOffset = 0) {
     return [`📢 ${dayOffset === 1 ? '明日' : '今日'}の「稽古連絡」対象の予定はありません。`];
   }
 
-  let message = `【${dayOffset === 1 ? '明日の' : '本日の'}稽古予定】\n`;
+  let message = `【${dayOffset === 1 ? '明日の' : '本日の'}稽古予定】`;
+
   for (const event of events) {
     const start = new Date(event.start.dateTime || event.start.date);
     const end = new Date(event.end.dateTime || event.end.date);
     const weekday = ['日', '月', '火', '水', '木', '金', '土'][start.getDay()];
-
     const startStr = `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日（${weekday}） ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
     const endStr = `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
 
-    message += `\n📢 ${event.summary}`;
-    message += `\n📅日時：${startStr}～${endStr}`;
-    if (event.location) message += `\n📍場所：${event.location}`;
-    message += `\n📝内容：${event.description}\n`;
+    message += `\n\n📢 ${event.summary}`;
+    message += `\n\n📅日時：${startStr}～${endStr}`;
+    if (event.location) message += `\n\n📍場所：${event.location}`;
+    message += `\n\n📝内容：${event.description}`;
   }
+
   return [message.trim()];
 }
 
