@@ -1,10 +1,16 @@
-// 🔁 複数日時対応版 LINE Bot 完全コード
+// 🔁 JST対応済 LINE Bot 完全コード
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const { google } = require('googleapis');
 const { Firestore } = require('@google-cloud/firestore');
 const key = require('/secrets/line-bot-key.json');
+
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const app = express();
 app.use(bodyParser.json());
@@ -48,17 +54,13 @@ async function postToSheet(data) {
 
 async function getVisitorEventsOneMonth() {
   await jwtClient.authorize();
-  const now = new Date();
-  const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
-  jstNow.setHours(0, 0, 0, 0);
-  const endJST = new Date(jstNow);
-  endJST.setMonth(endJST.getMonth() + 1);
-  endJST.setHours(23, 59, 59, 999);
+  const now = dayjs().tz('Asia/Tokyo').startOf('day');
+  const end = now.add(1, 'month').endOf('day');
 
   const res = await calendar.events.list({
     calendarId: CALENDAR_ID,
-    timeMin: jstNow.toISOString(),
-    timeMax: endJST.toISOString(),
+    timeMin: now.toISOString(),
+    timeMax: end.toISOString(),
     singleEvents: true,
     orderBy: 'startTime',
   });
@@ -95,11 +97,9 @@ app.post('/webhook', async (req, res) => {
       const events = await getVisitorEventsOneMonth();
       if (events.length === 0) return await sendLineMessage('該当する予定が見つかりませんでした。', userId);
 
-      const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
       const eventsText = events.map(e => {
-        const start = new Date(e.start.dateTime || e.start.date);
-        const day = `${start.getMonth() + 1}月${start.getDate()}日（${weekdays[start.getDay()]}) ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
-        return `・${day}`;
+        const jst = dayjs(e.start.dateTime || e.start.date).tz('Asia/Tokyo');
+        return `・${jst.format('M月D日（dd） HH:mm')}`;
       }).join('\n\n');
 
       const message1 = `お問い合わせありがとうございます。
@@ -159,8 +159,8 @@ ${eventsText}
         const month = parseInt(matches[0][1]);
         const day = parseInt(matches[0][2]);
         const matched = events.find(e => {
-          const start = new Date(e.start.dateTime || e.start.date);
-          return start.getMonth() + 1 === month && start.getDate() === day;
+          const jst = dayjs(e.start.dateTime || e.start.date).tz('Asia/Tokyo');
+          return jst.month() + 1 === month && jst.date() === day;
         });
         if (matched) place = matched.location || place;
       }
@@ -185,23 +185,21 @@ ${parsed.date}
 });
 
 app.get('/broadcast/visitors', async (req, res) => {
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  const dateKey = `${tomorrow.getMonth() + 1}月${tomorrow.getDate()}日`;
+  const now = dayjs().tz('Asia/Tokyo');
+  const tomorrow = now.add(1, 'day');
+  const dateKey = `${tomorrow.month() + 1}月${tomorrow.date()}日`;
 
   const events = await getVisitorEventsOneMonth();
   const tomorrowEvents = events.filter(e => {
-    const start = new Date(e.start.dateTime || e.start.date);
-    return start.getDate() === tomorrow.getDate() && start.getMonth() === tomorrow.getMonth();
+    const jst = dayjs(e.start.dateTime || e.start.date).tz('Asia/Tokyo');
+    return jst.date() === tomorrow.date() && jst.month() === tomorrow.month();
   });
 
   if (tomorrowEvents.length === 0) return res.send('明日の予定はありません。');
 
   const messages = tomorrowEvents.map(e => {
-    const start = new Date(e.start.dateTime || e.start.date);
-    const weekday = ['日','月','火','水','木','金','土'][start.getDay()];
-    return `日時：${start.getMonth() + 1}月${start.getDate()}日（${weekday}） ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}
+    const jst = dayjs(e.start.dateTime || e.start.date).tz('Asia/Tokyo');
+    return `日時：${jst.format('M月D日（dd） HH:mm')}
 
 場所：${e.location || '未定'}
 
@@ -222,23 +220,20 @@ app.get('/broadcast/visitors', async (req, res) => {
 });
 
 app.get('/broadcast/all', async (req, res) => {
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(now.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
+  const now = dayjs().tz('Asia/Tokyo');
+  const tomorrow = now.add(1, 'day');
 
   const events = await getVisitorEventsOneMonth();
   const tomorrowEvents = events.filter(e => {
-    const start = new Date(e.start.dateTime || e.start.date);
-    return start.getDate() === tomorrow.getDate() && start.getMonth() === tomorrow.getMonth();
+    const jst = dayjs(e.start.dateTime || e.start.date).tz('Asia/Tokyo');
+    return jst.date() === tomorrow.date() && jst.month() === tomorrow.month();
   });
 
   if (tomorrowEvents.length === 0) return res.send('明日の予定はありません。');
 
   const messages = tomorrowEvents.map(e => {
-    const start = new Date(e.start.dateTime || e.start.date);
-    const weekday = ['日','月','火','水','木','金','土'][start.getDay()];
-    return `日時：${start.getMonth() + 1}月${start.getDate()}日（${weekday}） ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}
+    const jst = dayjs(e.start.dateTime || e.start.date).tz('Asia/Tokyo');
+    return `日時：${jst.format('M月D日（dd） HH:mm')}
 
 場所：${e.location || '未定'}
 
