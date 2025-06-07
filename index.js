@@ -1,3 +1,4 @@
+// 🔁 複数日時対応版 LINE Bot 完全コード（最新版）
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
@@ -23,7 +24,7 @@ const jwtClient = new google.auth.JWT(
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
 function getField(text, label) {
-  const regex = new RegExp(`${label}[\\s\\n]*([^\\n]+)`);
+  const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
   const match = text.match(regex);
   return match ? match[1].trim() : '';
 }
@@ -73,6 +74,25 @@ async function sendLineMessage(text, to) {
       'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`
     }
   });
+}
+
+// 🔁 複数日予約対応：保存関数
+async function saveVisitorResponse(userId, parsed) {
+  const normalized = toHalfWidth(parsed.date);
+  const matches = [...normalized.matchAll(/(\d{1,2})月(\d{1,2})日/g)];
+  const dateKeyList = matches.map(m => `${parseInt(m[1])}月${parseInt(m[2])}日`);
+
+  const existing = await usersCollection.doc(userId).get();
+  let list = [];
+  if (existing.exists && Array.isArray(existing.data().dateKeyList)) {
+    list = existing.data().dateKeyList;
+  }
+  for (const key of dateKeyList) {
+    if (!list.includes(key)) list.push(key);
+  }
+
+  parsed.dateKeyList = list;
+  await usersCollection.doc(userId).set(parsed, { merge: true });
 }
 
 // Webhook受信処理
@@ -221,7 +241,7 @@ app.get('/broadcast/all', async (req, res) => {
   res.send('✅ 全体送信完了');
 });
 
-// 予約者限定送信（明日分）
+// 🔁 予約者限定送信（複数日対応）
 app.get('/broadcast/visitors', async (req, res) => {
   const now = new Date();
   const tomorrow = new Date(now);
@@ -247,14 +267,17 @@ app.get('/broadcast/visitors', async (req, res) => {
 内容：${e.description || ''}`;
   }).join('\n\n---\n\n');
 
-  const snapshot = await usersCollection.where('dateKey', '==', dateKey).get();
-  if (snapshot.empty) return res.send('予約者が見つかりません');
-
+  const snapshot = await usersCollection.get();
+  let count = 0;
   for (const doc of snapshot.docs) {
-    await sendLineMessage(`【明日の稽古予定】\n\n${messages}`, doc.id);
+    const data = doc.data();
+    if (Array.isArray(data.dateKeyList) && data.dateKeyList.includes(dateKey)) {
+      await sendLineMessage(`【明日の稽古予定】\n\n${messages}`, doc.id);
+      count++;
+    }
   }
 
-  res.send(`✅ 予約者（${snapshot.size}名）に送信完了`);
+  res.send(`✅ 予約者（${count}名）に送信完了`);
 });
 
 app.listen(process.env.PORT || 8080, () => {
