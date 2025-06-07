@@ -127,7 +127,7 @@ async function getVisitorEventsOneMonth() {
 
 ご返信確認後、当日の注意事項などを改めてご連絡させていただきます。
 
----こちらから本文をコピーしてご利用ください---
+--------------------
 
 【お名前】
 
@@ -138,7 +138,7 @@ async function getVisitorEventsOneMonth() {
 【参加にあたって所属道場長の許可】
 得ている・確認中
 
-【希望日時（参加日以外は削除すると便利です）】
+【希望日時】
 ${eventsText}
 
 【ご連絡事項（あれば）】
@@ -219,12 +219,11 @@ app.get('/calendar/broadcast', async (req, res) => {
     for (const doc of snapshot.docs) {
       const userId = doc.id;
       for (const message of messages) {
-        // await sendLineMessage(message, userId); // 🔕 停止中
-        console.log(`🔕 通知停止中: ${message} → ${userId}`);
+        await sendLineMessage(message, userId); // ✅ 通知再開
       }
     }
 
-    res.send('✅ 通知は停止中（ログのみ出力）');
+    res.send('✅ 全ユーザーに送信完了');
   } catch (err) {
     console.error('❌ 通知失敗:', err.message);
     res.status(500).send('サーバーエラー');
