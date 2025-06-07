@@ -1,4 +1,3 @@
-
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
@@ -99,27 +98,9 @@ app.post('/webhook', async (req, res) => {
         return `${start.getMonth() + 1}月${start.getDate()}日（${weekday}）${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
       }).join('\n\n');
 
-      const message1 = `お問い合わせありがとうございます。
-現在予定している稽古日時を現在から1ヶ月分お知らせします。
+      const message1 = `お問い合わせありがとうございます。\n現在予定している稽古日時を現在から1ヶ月分お知らせします。\n\n【日時一覧】\n${eventsText}\n\nこのあと続けて返信用テンプレートを送信します。\n文面を長押しして「コピー」→メッセージ入力画面を長押しして「ペースト」をしていただくと入力がスムーズです。\nご不明点は「お問い合わせ」からいつでもお気軽にどうぞ。`;
 
-【日時一覧】
-${eventsText}
-
-このあと続けて返信用テンプレートを送信します。
-文面を長押しして「コピー」→メッセージ入力画面を長押しして「ペースト」をしていただくと入力がスムーズです。
-ご不明点は「お問い合わせ」からいつでもお気軽にどうぞ。`;
-
-      const message2 = `【希望日時】
-〇月〇日
-【お名前】
-〇〇 〇〇
-【学年or年齢】
-○○
-【所属道場】
-○○
-【参加の許可を所属道場長の許可】
-得ている・確認中
-【ご連絡事項（あれば）】`;
+      const message2 = `【希望日時】\n〇月〇日\n【お名前】\n〇〇 〇〇\n【学年or年齢】\n○○\n【所属道場】\n○○\n【参加の許可を所属道場長の許可】\n得ている・確認中\n【ご連絡事項（あれば）】`;
 
       await sendLineMessage(message1, userId);
       await sendLineMessage(message2, userId);
