@@ -1,4 +1,4 @@
-// 🔁 JST対応済 LINE Bot 完全コード
+// 🔁 JST対応済 + 日本語曜日対応 LINE Bot 完全コード
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
@@ -7,13 +7,17 @@ const { Firestore } = require('@google-cloud/firestore');
 const key = require('/secrets/line-bot-key.json');
 
 const dayjs = require('dayjs');
+require('dayjs/locale/ja'); // ✅ 追加：日本語ロケール読み込み
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+dayjs.locale('ja'); // ✅ 追加：ロケールを日本語に設定
+
 const app = express();
 app.use(bodyParser.json());
+
 
 const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
