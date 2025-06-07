@@ -138,7 +138,7 @@ async function getVisitorEventsOneMonth() {
 【参加にあたって所属道場長の許可】
 得ている・確認中
 
-【希望日時】
+【希望日時（参加日以外は削除すると便利です）】
 ${eventsText}
 
 【ご連絡事項（あれば）】
