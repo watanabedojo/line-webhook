@@ -28,13 +28,13 @@ const jwtClient = new google.auth.JWT(
 );
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
-// JSTの1日分の範囲
-function getJSTRange() {
+// JSTの指定日の範囲（当日 or 翌日）
+function getJSTRange(dayOffset = 0) {
   const now = new Date();
   const jstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
   const y = jstNow.getFullYear(), m = jstNow.getMonth(), d = jstNow.getDate();
-  const start = new Date(Date.UTC(y, m, d, -9, 0, 0));
-  const end = new Date(Date.UTC(y, m, d + 1, -9, 0, 0));
+  const start = new Date(Date.UTC(y, m, d + dayOffset, -9, 0, 0));
+  const end = new Date(Date.UTC(y, m, d + dayOffset + 1, -9, 0, 0));
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
@@ -61,9 +61,9 @@ function getField(text, label) {
   return match ? match[1].trim() : '';
 }
 
-async function getTodaysEvents() {
+async function getScheduledEvents(dayOffset = 0) {
   await jwtClient.authorize();
-  const { start, end } = getJSTRange();
+  const { start, end } = getJSTRange(dayOffset);
   const res = await calendar.events.list({
     calendarId: CALENDAR_ID,
     timeMin: start,
@@ -76,10 +76,10 @@ async function getTodaysEvents() {
   const events = allEvents.filter(e => e.description?.includes('全体通知'));
 
   if (events.length === 0) {
-    return ['📢 今日の「全体通知」対象の予定はありません。'];
+    return [`📢 ${dayOffset === 1 ? '明日' : '今日'}の「全体通知」対象の予定はありません。`];
   }
 
-  let message = `おはようございます。\n本日の予定をお知らせします。\n`;
+  let message = `お知らせです。\n${dayOffset === 1 ? '明日' : '本日'}の予定をお送りします。\n`;
   for (const event of events) {
     const startTime = formatDateTime(event.start.dateTime || event.start.date);
     const endTime = formatDateTime(event.end.dateTime || event.end.date);
@@ -170,7 +170,6 @@ app.post('/webhook', async (req, res) => {
   const userId = event.source?.userId;
   const replyToken = event.replyToken;
 
-  // 🔒 重複処理チェック
   const exists = await tokensCollection.doc(replyToken).get();
   if (exists.exists) {
     console.log('⚠️ 重複イベント：スキップします');
@@ -212,14 +211,15 @@ app.post('/webhook', async (req, res) => {
 
 app.get('/calendar/broadcast', async (req, res) => {
   try {
-    const messages = await getTodaysEvents();
+    const isTomorrow = req.query.target === 'tomorrow';
+    const messages = await getScheduledEvents(isTomorrow ? 1 : 0);
     const snapshot = await usersCollection.get();
     if (snapshot.empty) return res.status(404).send('ユーザーがいません');
 
     for (const doc of snapshot.docs) {
       const userId = doc.id;
       for (const message of messages) {
-        await sendLineMessage(message, userId); // ✅ 通知再開
+        await sendLineMessage(message, userId);
       }
     }
 
