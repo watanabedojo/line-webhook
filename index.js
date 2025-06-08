@@ -7,17 +7,15 @@ const { Firestore } = require('@google-cloud/firestore');
 const key = require('/secrets/line-bot-key.json');
 
 const dayjs = require('dayjs');
-require('dayjs/locale/ja'); // ✅ 追加：日本語ロケール読み込み
+require('dayjs/locale/ja');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
 dayjs.extend(utc);
 dayjs.extend(timezone);
-
-dayjs.locale('ja'); // ✅ 追加：ロケールを日本語に設定
+dayjs.locale('ja');
 
 const app = express();
 app.use(bodyParser.json());
-
 
 const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
@@ -93,6 +91,11 @@ app.post('/webhook', async (req, res) => {
   const exists = await tokensCollection.doc(replyToken).get();
   if (exists.exists) return res.sendStatus(200);
   await tokensCollection.doc(replyToken).set({ handled: true });
+
+  if (event.type === 'follow') {
+    await usersCollection.doc(userId).set({ joinedAt: new Date(), source: 'follow' }, { merge: true });
+    await sendLineMessage('ご登録ありがとうございます！メッセージで「ビジター申込」と送ってください。', userId);
+  }
 
   if (event.type === 'message') {
     const text = event.message.text;
