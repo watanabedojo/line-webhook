@@ -94,7 +94,7 @@ app.post('/webhook', async (req, res) => {
 
   if (event.type === 'follow') {
     await usersCollection.doc(userId).set({ joinedAt: new Date(), source: 'follow' }, { merge: true });
-    await sendLineMessage('ご登録ありがとうございます！メッセージで「ビジター申込」と送ってください。', userId);
+    await sendLineMessage('ご登録ありがとうございます！次回から稽古予定日の前日に稽古案内が届きますので、通知は「オン」のままご利用ください。', userId);
   }
 
   if (event.type === 'message') {
