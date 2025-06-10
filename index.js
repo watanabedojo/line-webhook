@@ -271,6 +271,56 @@ app.get('/broadcast/all', async (req, res) => {
   res.send('✅ 全体送信完了');
 });
 
+app.get('/message/weekly', async (req, res) => {
+  try {
+    await jwtClient.authorize();
+    const now = dayjs().tz('Asia/Tokyo').startOf('day');
+    const endOfMonth = now.endOf('month');
+
+    const resCal = await calendar.events.list({
+      calendarId: CALENDAR_ID,
+      timeMin: now.toISOString(),
+      timeMax: endOfMonth.toISOString(),
+      singleEvents: true,
+      orderBy: 'startTime',
+    });
+
+    const events = (resCal.data.items || []).filter(e => e.description?.includes('ビジター'));
+
+    if (events.length === 0) {
+      return res.send('現在、今月末までに予定されているビジター稽古はありません。');
+    }
+
+    const scheduleText = events.map(e => {
+      const jst = dayjs(e.start.dateTime || e.start.date).tz('Asia/Tokyo');
+      const place = e.location || '場所未定';
+      return `・${jst.format('M月D日（dd） HH:mm')}（${place}）`;
+    }).join('\n');
+
+    const message = `🥋【今月の稽古予定】
+
+こんにちは、渡邊道場です！  
+以下の日程で稽古を予定しています👇
+
+${scheduleText}
+
+✨最近の声をご紹介✨  
+「対人練習が本格的で刺激になる」  
+「先生のアドバイスが的確でありがたい」  
+── そんなご感想をいただいています。
+
+出稽古・ビジターの皆さまも大歓迎です。  
+気になる日があれば、お気軽にLINEでご相談ください！`;
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(message);
+  } catch (error) {
+    console.error('❌ /message/weekly エラー:', error);
+    res.status(500).send('予定の取得中にエラーが発生しました。');
+  }
+});
+
+
 app.listen(process.env.PORT || 8080, () => {
   console.log('🚀 Server running on port 8080');
 });
