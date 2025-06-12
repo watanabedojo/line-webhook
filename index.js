@@ -207,7 +207,14 @@ ${parsed.date}
   res.sendStatus(200);
 });
 
+// 🔐 SNS等のクローラーによる意図しない実行を防止
 app.get('/broadcast/visitors', async (req, res) => {
+  const ua = req.headers['user-agent'] || '';
+  const forbiddenAgents = ['facebookexternalhit', 'Line', 'bot', 'Slackbot'];
+  if (forbiddenAgents.some(agent => ua.includes(agent))) {
+    return res.status(403).send('Forbidden: suspected crawler access');
+  }
+
   const now = dayjs().tz('Asia/Tokyo');
   const tomorrow = now.add(1, 'day');
   const dateKey = `${tomorrow.month() + 1}月${tomorrow.date()}日`;
@@ -242,20 +249,7 @@ app.get('/broadcast/visitors', async (req, res) => {
   res.send(`✅ 予約者（${count}名）に送信完了`);
 });
 
-
-// 🔐 SNS等のクローラーによる意図しない実行を防止
-app.get('/broadcast/all', (req, res) => {
-  return res.status(405).send('GET method not allowed. Please use POST.');
-});
-
-app.post('/broadcast/all', async (req, res) => {
-  const ua = req.headers['user-agent'] || '';
-  const forbiddenAgents = ['facebookexternalhit', 'Line', 'bot', 'Slackbot'];
-  if (forbiddenAgents.some(agent => ua.includes(agent))) {
-    return res.status(403).send('Forbidden: suspected crawler access');
-  }
-
-
+app.get('/broadcast/all', async (req, res) => {
   const now = dayjs().tz('Asia/Tokyo');
   const tomorrow = now.add(1, 'day');
 
@@ -281,7 +275,7 @@ app.post('/broadcast/all', async (req, res) => {
     await sendLineMessage(`【明日の稽古予定】\n\n${messages}`, doc.id);
   }
 
-  return res.send('✅ 全体送信完了');
+  res.send('✅ 全体送信完了');
 });
 
 app.get('/message/weekly', async (req, res) => {
