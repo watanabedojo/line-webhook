@@ -67,7 +67,7 @@ function sendEmailNotification(subject, body) {
 
 // 🔧 通知用にメッセージを送ったらGmailでも送信（例：sendLineMessageの後など）
 // await sendEmailNotification('LINEで新規メッセージ受信', `ユーザーID: ${userId}\nメッセージ内容: ${text}`);
-const calendar = google.calendar({ version: 'v3', auth: jwtClient });
+
 
 function getField(text, label) {
   const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
