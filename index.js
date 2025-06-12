@@ -208,7 +208,7 @@ ${parsed.date}
 });
 
 // 🔐 SNS等のクローラーによる意図しない実行を防止
-app.get('/broadcast/visitors', async (req, res) => {
+app.post('/broadcast/visitors', async (req, res) => {
   const ua = req.headers['user-agent'] || '';
   const forbiddenAgents = ['facebookexternalhit', 'Line', 'bot', 'Slackbot'];
   if (forbiddenAgents.some(agent => ua.includes(agent))) {
@@ -249,7 +249,7 @@ app.get('/broadcast/visitors', async (req, res) => {
   res.send(`✅ 予約者（${count}名）に送信完了`);
 });
 
-app.get('/broadcast/all', async (req, res) => {
+app.post('/broadcast/all', async (req, res) => {
   const now = dayjs().tz('Asia/Tokyo');
   const tomorrow = now.add(1, 'day');
 
