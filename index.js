@@ -88,16 +88,26 @@ async function getVisitorEventsOneMonth() {
 }
 
 async function sendLineMessage(text, to) {
-  await axios.post('https://api.line.me/v2/bot/message/push', {
-    to,
-    messages: [{ type: 'text', text }]
-  }, {
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`
-    }
-  });
+  try {
+    console.log('📤 Sending message to:', to);
+    console.log('📄 Message content:', text);
+
+    const res = await axios.post('https://api.line.me/v2/bot/message/push', {
+      to,
+      messages: [{ type: 'text', text }]
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`
+      }
+    });
+
+    console.log('✅ LINE message sent successfully:', res.data);
+  } catch (err) {
+    console.error('❌ LINE message send failed:', err.response?.data || err.message);
+  }
 }
+
 
 app.post('/webhook', async (req, res) => {
   const event = req.body.events?.[0];
