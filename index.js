@@ -327,6 +327,40 @@ ${scheduleText}
   }
 });
 
+// 🔧 テストモード：特定ユーザーへのみ送信（開発者用）
+app.post('/broadcast/test', async (req, res) => {
+  const ua = req.headers['user-agent'] || '';
+  const forbiddenAgents = ['facebookexternalhit', 'Line', 'bot', 'Slackbot'];
+  if (forbiddenAgents.some(agent => ua.includes(agent))) {
+    return res.status(403).send('Forbidden: suspected crawler access');
+  }
+
+  const TEST_USER_ID = 'U5cb571e2ad5fcbcdfda8f2105edd2f0a'; // ←あなたのID
+
+  const now = dayjs().tz('Asia/Tokyo');
+  const tomorrow = now.add(1, 'day');
+
+  const events = await getVisitorEventsOneMonth();
+  const tomorrowEvents = events.filter(e => {
+    const jst = dayjs(e.start.dateTime || e.start.date).tz('Asia/Tokyo');
+    return jst.date() === tomorrow.date() && jst.month() === tomorrow.month();
+  });
+
+  if (tomorrowEvents.length === 0) return res.send('明日の予定はありません。');
+
+  const messages = tomorrowEvents.map(e => {
+    const jst = dayjs(e.start.dateTime || e.start.date).tz('Asia/Tokyo');
+    return `日時：${jst.format('M月D日（dd） HH:mm')}
+
+場所：${e.location || '未定'}
+
+内容：${e.description || ''}`;
+  }).join('\n\n---\n\n');
+
+  await sendLineMessage(`【明日の稽古予定（テスト送信）】\n\n${messages}`, TEST_USER_ID);
+
+  return res.send('✅ テストユーザーに送信完了');
+});
 
 app.listen(process.env.PORT || 8080, () => {
   console.log('🚀 Server running on port 8080');
