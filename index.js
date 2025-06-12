@@ -65,13 +65,13 @@ function sendEmailNotification(subject, body) {
   return transporter.sendMail(mailOptions);
 }
 // 🔧 通知用にメッセージを送ったらGmailでも送信（例：sendLineMessageの後など）
-await sendEmailNotification('LINEで新規メッセージ受信', `ユーザーID: ${userId}\nメッセージ内容: ${text}`);
-
-function getField(text, label) {
-  const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
-  const match = text.match(regex);
-  return match ? match[1].trim() : '';
-}
+  await sendEmailNotification('LINEで新規メッセージ受信', `ユーザーID: ${userId}\nメッセージ内容: ${text}`);
+  
+  function getField(text, label) {
+    const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
+    const match = text.match(regex);
+    return match ? match[1].trim() : '';
+  }
 
 function toHalfWidth(str) {
   return str.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
