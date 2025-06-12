@@ -58,14 +58,14 @@ function sendEmailNotification(subject, body) {
   });
   const mailOptions = {
     from: 'jks.watanabe.dojo@gmail.com',
-    to: '通知先メール@example.com',
+    to: 'info@watanabedojo.jp',
     subject,
     text: body
   };
   return transporter.sendMail(mailOptions);
 }
 // 🔧 通知用にメッセージを送ったらGmailでも送信（例：sendLineMessageの後など）
-// await sendEmailNotification('LINEで新規メッセージ受信', `ユーザーID: ${userId}\nメッセージ内容: ${text}`);
+await sendEmailNotification('LINEで新規メッセージ受信', `ユーザーID: ${userId}\nメッセージ内容: ${text}`);
 
 function getField(text, label) {
   const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
