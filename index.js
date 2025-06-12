@@ -17,6 +17,23 @@ dayjs.locale('ja');
 const app = express();
 app.use(bodyParser.json());
 
+// ✅ CORS設定（watanabedojo.jp からのみ許可）
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', 'https://watanabedojo.jp');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
+
+// ✅ プリフライト（OPTIONSリクエスト）対応
+app.options('*', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', 'https://watanabedojo.jp');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
+
+
 const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 const GAS_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbz915raOlkxis1vx_7vvJjVdA5KzNquZUAt1QckbJVCCcxM6MEj4RhCX-4WDyT6ZImP/exec';
