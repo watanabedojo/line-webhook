@@ -32,7 +32,7 @@ app.options('*', (req, res) => {
   res.sendStatus(200);
 });
 
-const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
+const LINE_CHANNEL_ACCESS_TOKEN = 'YOUR_LINE_CHANNEL_ACCESS_TOKEN';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 const GAS_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbz915raOlkxis1vx_7vvJjVdA5KzNquZUAt1QckbJVCCcxM6MEj4RhCX-4WDyT6ZImP/exec';
 
@@ -53,7 +53,7 @@ function sendEmailNotification(subject, body) {
     service: 'gmail',
     auth: {
       user: 'jks.watanabe.dojo@gmail.com',
-      pass: 'uuzo gxgz kqwx kera'
+      pass: 'YOUR_APP_PASSWORD'
     }
   });
   const mailOptions = {
@@ -64,9 +64,21 @@ function sendEmailNotification(subject, body) {
   };
   return transporter.sendMail(mailOptions);
 }
-// 🔧 通知用にメッセージを送ったらGmailでも送信（例：sendLineMessageの後など）
-  await sendEmailNotification('LINEで新規メッセージ受信', `ユーザーID: ${userId}\nメッセージ内容: ${text}`);
-  
+
+// ✅ 検証用メール送信エンドポイント
+app.post('/test/email', async (req, res) => {
+  try {
+    await sendEmailNotification(
+      'LINEで新規メッセージ受信',
+      'ユーザーID: TEST123\nメッセージ内容: テスト送信です。'
+    );
+    res.send('✅ メール送信完了');
+  } catch (error) {
+    console.error('❌ メール送信失敗:', error.message);
+    res.status(500).send('❌ メール送信失敗');
+  }
+});
+
   function getField(text, label) {
     const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
     const match = text.match(regex);
