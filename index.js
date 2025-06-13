@@ -1,4 +1,4 @@
-// 🔁 JST対応済 + 日本語曜日対応 LINE Bot 完全コード（登録機能 + Gmail通知）
+// 🔁 JST対応済 + 日本語曜日対応 LINE Bot 完全コード（環境変数対応・登録機能 + Gmail通知）
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
@@ -6,7 +6,6 @@ const { google } = require('googleapis');
 const { Firestore } = require('@google-cloud/firestore');
 const key = require('/secrets/line-bot-key.json');
 const nodemailer = require('nodemailer');
-
 const dayjs = require('dayjs');
 require('dayjs/locale/ja');
 const utc = require('dayjs/plugin/utc');
@@ -18,21 +17,10 @@ dayjs.locale('ja');
 const app = express();
 app.use(bodyParser.json());
 
-app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', 'https://watanabedojo.jp');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  next();
-});
-
-app.options('*', (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', 'https://watanabedojo.jp');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.sendStatus(200);
-});
-
-const LINE_CHANNEL_ACCESS_TOKEN = 'YOUR_LINE_CHANNEL_ACCESS_TOKEN';
+// ✅ 環境変数
+const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+const GMAIL_USER = process.env.GMAIL_USER;
+const GMAIL_PASS = process.env.GMAIL_PASS;
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
 const GAS_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbz915raOlkxis1vx_7vvJjVdA5KzNquZUAt1QckbJVCCcxM6MEj4RhCX-4WDyT6ZImP/exec';
 
@@ -48,16 +36,30 @@ const jwtClient = new google.auth.JWT(
 );
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
 
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', 'https://watanabedojo.jp');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
+
+app.options('*', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', 'https://watanabedojo.jp');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
+
 function sendEmailNotification(subject, body) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: 'jks.watanabe.dojo@gmail.com',
-      pass: 'YOUR_APP_PASSWORD'
+      user: GMAIL_USER,
+      pass: GMAIL_PASS
     }
   });
   const mailOptions = {
-    from: 'jks.watanabe.dojo@gmail.com',
+    from: GMAIL_USER,
     to: 'info@watanabedojo.jp',
     subject,
     text: body
@@ -65,25 +67,44 @@ function sendEmailNotification(subject, body) {
   return transporter.sendMail(mailOptions);
 }
 
-// ✅ 検証用メール送信エンドポイント
-app.post('/test/email', async (req, res) => {
-  try {
-    await sendEmailNotification(
-      'LINEで新規メッセージ受信',
-      'ユーザーID: TEST123\nメッセージ内容: テスト送信です。'
-    );
-    res.send('✅ メール送信完了');
-  } catch (error) {
-    console.error('❌ メール送信失敗:', error.message);
-    res.status(500).send('❌ メール送信失敗');
-  }
-});
+async function getVisitorEventsOneMonth() {
+  await jwtClient.authorize();
+  const now = dayjs().tz('Asia/Tokyo').startOf('day');
+  const end = now.add(1, 'month').endOf('day');
 
-  function getField(text, label) {
-    const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
-    const match = text.match(regex);
-    return match ? match[1].trim() : '';
+  const res = await calendar.events.list({
+    calendarId: CALENDAR_ID,
+    timeMin: now.toISOString(),
+    timeMax: end.toISOString(),
+    singleEvents: true,
+    orderBy: 'startTime',
+  });
+
+  return (res.data.items || []).filter(e => e.description?.includes('ビジター'));
+}
+
+async function sendLineMessage(text, to) {
+  try {
+    const res = await axios.post('https://api.line.me/v2/bot/message/push', {
+      to,
+      messages: [{ type: 'text', text }]
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`
+      }
+    });
+    console.log('✅ LINE送信成功:', res.data);
+  } catch (err) {
+    console.error('❌ LINE送信失敗:', err.response?.data || err.message);
   }
+}
+
+function getField(text, label) {
+  const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
+  const match = text.match(regex);
+  return match ? match[1].trim() : '';
+}
 
 function toHalfWidth(str) {
   return str.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
@@ -99,6 +120,17 @@ async function postToSheet(data) {
     console.error('❌ スプレッドシート送信失敗:', err.message);
   }
 }
+
+// ✉️ 検証エンドポイント（オプション）
+app.post('/test/email', async (req, res) => {
+  try {
+    await sendEmailNotification('テスト通知', 'LINE Bot Gmail送信テスト完了。');
+    res.send('✅ メール送信完了');
+  } catch (e) {
+    console.error('❌ メール送信失敗:', e);
+    res.status(500).send('メール送信失敗');
+  }
+});
 
 async function getVisitorEventsOneMonth() {
   await jwtClient.authorize();
