@@ -1,10 +1,11 @@
-// 🔁 JST対応済 + 日本語曜日対応 LINE Bot 完全コード（登録機能追加版）
+// 🔁 JST対応済 + 日本語曜日対応 LINE Bot 完全コード（登録機能 + Gmail通知）
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const { google } = require('googleapis');
 const { Firestore } = require('@google-cloud/firestore');
 const key = require('/secrets/line-bot-key.json');
+const nodemailer = require('nodemailer');
 
 const dayjs = require('dayjs');
 require('dayjs/locale/ja');
@@ -17,7 +18,6 @@ dayjs.locale('ja');
 const app = express();
 app.use(bodyParser.json());
 
-// ✅ CORS設定（watanabedojo.jp からのみ許可）
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', 'https://watanabedojo.jp');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -25,15 +25,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ プリフライト（OPTIONSリクエスト）対応
 app.options('*', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', 'https://watanabedojo.jp');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.sendStatus(200);
 });
-
-
 
 const LINE_CHANNEL_ACCESS_TOKEN = 'Ex3aNn9jbX8JY3KAL85d8jLM0we0vqQXsLrtXaWh06pWxwWzsR7UGXD9QRd2QAUbzlO6LkGIMb6wJYBGFyflXZoy3IC8mtZ1mOSO7GMo/rzcYXvhEx4ZmjBIH8ZqHCNbQSzXSkMwOTNovmCfGfI1BAdB04t89/1O/w1cDnyilFU=';
 const CALENDAR_ID = 'jks.watanabe.dojo@gmail.com';
@@ -50,6 +47,25 @@ const jwtClient = new google.auth.JWT(
   ['https://www.googleapis.com/auth/calendar.readonly']
 );
 const calendar = google.calendar({ version: 'v3', auth: jwtClient });
+
+function sendEmailNotification(subject, body) {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'jks.watanabe.dojo@gmail.com',
+      pass: 'uuzo gxgz kqwx kera'
+    }
+  });
+  const mailOptions = {
+    from: 'jks.watanabe.dojo@gmail.com',
+    to: '通知先メール@example.com',
+    subject,
+    text: body
+  };
+  return transporter.sendMail(mailOptions);
+}
+// 🔧 通知用にメッセージを送ったらGmailでも送信（例：sendLineMessageの後など）
+// await sendEmailNotification('LINEで新規メッセージ受信', `ユーザーID: ${userId}\nメッセージ内容: ${text}`);
 
 function getField(text, label) {
   const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
