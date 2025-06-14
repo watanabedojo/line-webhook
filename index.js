@@ -143,6 +143,10 @@ app.post('/webhook', async (req, res) => {
 
   if (event.type === 'message') {
     const text = event.message.text;
+      await sendEmailNotification(
+    '📩 渡邊道場LINEに新しいメッセージ',
+    `ユーザーID: ${userId}\n\n内容:\n${text}`
+  );
 
     if (text === '登録') {
       const already = await usersCollection.doc(userId).get();
