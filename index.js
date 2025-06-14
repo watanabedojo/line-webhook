@@ -58,7 +58,7 @@ function sendEmailNotification(subject, body) {
   });
   const mailOptions = {
     from: 'jks.watanabe.dojo@gmail.com',
-    to: '通知先メール@example.com',
+    to: 'info@watanabedojo.jp',
     subject,
     text: body
   };
