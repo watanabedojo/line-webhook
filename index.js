@@ -66,14 +66,14 @@ function sendEmailNotification(subject, body) {
 }
 // 🔧 通知用にメッセージを送ったらGmailでも送信（例：sendLineMessageの後など）
 // await sendEmailNotification('LINEで新規メッセージ受信', `ユーザーID: ${userId}\nメッセージ内容: ${text}`);
-try {
-  await sendEmailNotification(
-    'LINEで新規メッセージ受信',
-    `ユーザーID: ${userId}\nメッセージ内容: ${text}`
-  );
-} catch (err) {
-  console.error('❌ Gmail送信エラー:', err.message);
-}
+  try {
+    await sendEmailNotification(
+      'LINEで新規メッセージ受信',
+      `ユーザーID: ${userId}\nメッセージ内容: ${text}`
+    );
+  } catch (err) {
+    console.error('❌ Gmail送信エラー:', err.message);
+  }
 function getField(text, label) {
   const regex = new RegExp(`${label}[\s\n]*([^\n]+)`);
   const match = text.match(regex);
